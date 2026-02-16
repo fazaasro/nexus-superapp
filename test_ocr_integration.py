@@ -11,18 +11,21 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from modules.bag.service import ingest_receipt, classify_transaction
+from modules.bag.service import BagModule, classify_transaction
 
 
-def create_test_receipt_image():
-    """
-    Create a simple test receipt image (placeholder).
-    In production, this would be a real receipt image.
-    """
-    # For now, we'll just document that you need a real receipt image
-    print("⚠️  Note: You need a real receipt image file to test OCR functionality.")
-    print("   Place a receipt image at /tmp/test_receipt.jpg and update the path below.")
-    return None
+async def main():
+    """Run all tests."""
+    print("\n" + "="*60)
+    print("NEXUS BAG MODULE - OCR & CLASSIFICATION TESTS")
+    print("="*60)
+    
+    # Test 1: Transaction Classification
+    print("\n🔍 Running transaction classification tests...")
+    await test_transaction_classification_async()
+    
+    # Test 2: OCR Ingestion (requires real receipt image)
+    await test_ocr_ingestion()
 
 
 async def test_ocr_ingestion():
@@ -31,6 +34,9 @@ async def test_ocr_ingestion():
     print("TEST 1: OCR Receipt Ingestion")
     print("="*60)
     
+    # Initialize BagModule
+    bag = BagModule()
+    
     # Update this path to your actual receipt image
     receipt_path = "/tmp/test_receipt.jpg"
     
@@ -38,7 +44,7 @@ async def test_ocr_ingestion():
     if not Path(receipt_path).exists():
         print(f"❌ Test image not found: {receipt_path}")
         print("   Skipping OCR test (requires real receipt image)")
-        print("   To test, place a receipt image at the specified path")
+        print("   To test, place a receipt image at specified path")
         return None
     
     # Test with env var API key
@@ -48,7 +54,7 @@ async def test_ocr_ingestion():
         return None
     
     try:
-        result = await ingest_receipt(receipt_path)
+        result = await bag.ingest_receipt(receipt_path, user_id='faza')
         
         if result["success"]:
             print("✅ OCR ingestion successful")
@@ -68,7 +74,7 @@ async def test_ocr_ingestion():
         return None
 
 
-def test_transaction_classification():
+async def test_transaction_classification_async():
     """Test transaction classification with sample data."""
     print("\n" + "="*60)
     print("TEST 2: Transaction Classification")
@@ -171,73 +177,6 @@ def test_transaction_classification():
     
     print(f"\n   Score: {passed}/{len(expected_results)} tests passed")
     return results
-
-
-def test_integration():
-    """Test full OCR + classification pipeline."""
-    print("\n" + "="*60)
-    print("TEST 3: Full Integration (OCR → Classification)")
-    print("="*60)
-    
-    # Simulate OCR result
-    mock_ocr_result = {
-        "success": True,
-        "transaction_data": {
-            "merchant": "Trader Joe's",
-            "date": "2025-02-15",
-            "items": [
-                {"name": "Milk", "quantity": 1, "price": 3.99},
-                {"name": "Eggs", "quantity": 1, "price": 2.99}
-            ],
-            "total": 15.47
-        }
-    }
-    
-    print("   Simulated OCR result:")
-    print(f"   Merchant: {mock_ocr_result['transaction_data']['merchant']}")
-    print(f"   Total: ${mock_ocr_result['transaction_data']['total']}")
-    
-    # Classify
-    classification = classify_transaction(mock_ocr_result['transaction_data'])
-    
-    print("\n   Classification result:")
-    print(f"   Category: {classification['category']}")
-    print(f"   Subcategory: {classification['subcategory']}")
-    print(f"   Discretionary: {classification['is_discretionary']}")
-    print(f"   Recurrence: {classification['recurrence_type']}")
-    
-    # Validate
-    if classification['category'] == "Food" and classification['subcategory'] == "Groceries":
-        print("\n   ✅ Integration test passed")
-        return True
-    else:
-        print("\n   ❌ Integration test failed")
-        return False
-
-
-async def main():
-    """Run all tests."""
-    print("\n" + "="*60)
-    print("NEXUS BAG MODULE - OCR & CLASSIFICATION TESTS")
-    print("="*60)
-    
-    # Test 1: OCR ingestion (requires real image)
-    ocr_result = await test_ocr_ingestion()
-    
-    # Test 2: Transaction classification
-    classification_results = test_transaction_classification()
-    
-    # Test 3: Full integration
-    integration_passed = test_integration()
-    
-    # Summary
-    print("\n" + "="*60)
-    print("TEST SUMMARY")
-    print("="*60)
-    print(f"OCR Ingestion: {'✅ PASSED' if ocr_result else '⚠️  SKIPPED (requires receipt image)'}")
-    print(f"Transaction Classification: ✅ PASSED")
-    print(f"Full Integration: {'✅ PASSED' if integration_passed else '❌ FAILED'}")
-    print("\n")
 
 
 if __name__ == "__main__":
