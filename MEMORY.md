@@ -149,3 +149,24 @@ levy-help
 
 GitHub, Cloudflare, Docker helpers available.
 
+
+### Helper Scripts
+Location: ~/.openclaw/workspace/scripts/
+```bash
+source ~/.openclaw/workspace/scripts/helpers.sh
+levy-help
+```
+
+GitHub, Cloudflare, Docker helpers available.
+
+---
+
+**Last Updated: 2026-02-16**
+
+## Cron Jobs (2026-02-16)
+
+- OpenClaw cron scheduler: Enabled
+- Store: /home/ai-dev/.openclaw/cron/jobs.json
+- Current jobs: 0
+- Recommendation: Add hourly QMD update job for automatic reindexing
+- Command example: `openclaw cron add --schedule '{"kind":"every","everyMs":3600000}' --payload '{"kind":"systemEvent","text":"Running qmd embed..."}'`
