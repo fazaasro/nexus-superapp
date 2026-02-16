@@ -4,12 +4,15 @@ Receipt OCR, Classification, Split Logic, Runway Calculation
 """
 import json
 import uuid
+import re
+import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 from core.database import get_db, generate_uuid, log_audit
+from .ocr import OCRProcessor
 
 
 class BagModule:
@@ -330,3 +333,361 @@ class BagModule:
             'merchant': None,
             'amount': None
         }
+    
+    # ========== REAL OCR IMPLEMENTATION ==========
+    
+    async def ingest_receipt(self, image_path: str, ocr_api_key: Optional[str] = None, user_id: str = 'faza') -> Dict[str, Any]:
+        """
+        Ingest a receipt image using OCR to extract transaction data.
+        
+        Args:
+            image_path: Path to receipt image file (JPEG, PNG, etc.)
+            ocr_api_key: Optional OpenAI API key for OCR. If None, uses OPENAI_API_KEY env var.
+            user_id: User ID creating the transaction.
+            
+        Returns:
+            Dict with:
+            - success: bool
+            - transaction_data: dict with merchant, date, items, amounts
+            - raw_text: str (full OCR text)
+            - confidence: float (0-1)
+            - error: str (if failed)
+            
+        Example:
+            result = await ingest_receipt("/path/to/receipt.jpg")
+            if result["success"]:
+                merchant = result["transaction_data"]["merchant"]
+                total = result["transaction_data"]["total"]
+        """
+        try:
+            # Initialize OCR processor
+            ocr = OCRProcessor(api_key=ocr_api_key)
+            
+            # Extract structured data from receipt
+            result = ocr.extract_structured_data(image_path)
+            
+            if not result.get("success"):
+                return {
+                    "success": False,
+                    "error": result.get("error", "OCR extraction failed"),
+                    "image_path": image_path
+                }
+            
+            # Parse the structured response
+            raw_text = result["text"]
+            
+            # Try to extract JSON from response
+            transaction_data = _parse_ocr_response(raw_text)
+            
+            # Add metadata
+            transaction_data["image_path"] = image_path
+            transaction_data["ocr_timestamp"] = datetime.utcnow().isoformat()
+            
+            return {
+                "success": True,
+                "transaction_data": transaction_data,
+                "raw_text": raw_text,
+                "confidence": _calculate_confidence(transaction_data),
+                "usage": result.get("usage", {})
+            }
+            
+        except FileNotFoundError as e:
+            return {
+                "success": False,
+                "error": f"Image file not found: {str(e)}",
+                "image_path": image_path
+            }
+        except ValueError as e:
+            return {
+                "success": False,
+                "error": f"OCR configuration error: {str(e)}",
+                "image_path": image_path
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Unexpected error: {str(e)}",
+                "image_path": image_path
+            }
+
+
+def _parse_ocr_response(raw_text: str) -> Dict[str, Any]:
+    """
+    Parse OCR text response into structured transaction data.
+    
+    Args:
+        raw_text: Raw text from OCR API.
+        
+    Returns:
+        Dict with transaction fields.
+    """
+    # Try to extract JSON from response
+    try:
+        # Look for JSON block in markdown code fences
+        if "```json" in raw_text:
+            json_start = raw_text.find("```json") + 7
+            json_end = raw_text.find("```", json_start)
+            json_str = raw_text[json_start:json_end].strip()
+            return json.loads(json_str)
+        elif "```" in raw_text:
+            json_start = raw_text.find("```") + 3
+            json_end = raw_text.find("```", json_start)
+            json_str = raw_text[json_start:json_end].strip()
+            return json.loads(json_str)
+        else:
+            # Try parsing entire response as JSON
+            return json.loads(raw_text)
+    except json.JSONDecodeError:
+        # Fallback: extract key-value pairs using regex
+        return _extract_fallback_data(raw_text)
+
+
+def _extract_fallback_data(text: str) -> Dict[str, Any]:
+    """
+    Fallback extraction when JSON parsing fails.
+    
+    Args:
+        text: Raw OCR text.
+        
+    Returns:
+        Dict with basic extracted fields.
+    """
+    data = {
+        "merchant": None,
+        "date": None,
+        "items": [],
+        "subtotal": None,
+        "tax": None,
+        "total": None,
+        "payment_method": None
+    }
+    
+    # Extract totals (look for $XX.XX pattern)
+    totals = re.findall(r'\$?(\d+\.\d{2})', text)
+    if totals:
+        # Last total is usually the grand total
+        data["total"] = float(totals[-1])
+        if len(totals) > 1:
+            data["subtotal"] = float(totals[0])
+        if len(totals) > 2:
+            data["tax"] = float(totals[1])
+    
+    # Extract date (common formats)
+    date_patterns = [
+        r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+        r'(\d{4}[/-]\d{1,2}[/-]\d{1,2})',
+    ]
+    for pattern in date_patterns:
+        match = re.search(pattern, text)
+        if match:
+            data["date"] = match.group(1)
+            break
+    
+    return data
+
+
+def _calculate_confidence(transaction_data: Dict[str, Any]) -> float:
+    """
+    Calculate confidence score based on completeness of extracted data.
+    
+    Args:
+        transaction_data: Extracted transaction data.
+        
+    Returns:
+        Confidence score 0.0 to 1.0.
+    """
+    required_fields = ["merchant", "date", "total"]
+    optional_fields = ["items", "subtotal", "tax", "payment_method"]
+    
+    required_score = sum(1 for field in required_fields if transaction_data.get(field))
+    optional_score = sum(1 for field in optional_fields if transaction_data.get(field))
+    
+    # Weight required fields higher
+    confidence = (required_score * 0.3 + optional_score * 0.1) / len(required_fields)
+    return min(confidence, 1.0)
+
+
+# Transaction classifier
+def classify_transaction(transaction_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Classify a transaction into spending categories and subcategories.
+    
+    Uses merchant name, items, and amount patterns to predict:
+    - Category (e.g., Food, Transportation, Shopping)
+    - Subcategory (e.g., Groceries, Restaurant, Gas)
+    - Is_discretionary (bool)
+    - Recurrence_type (one_time, weekly, monthly, etc.)
+    
+    Args:
+        transaction_data: Dict with merchant, items, total, etc.
+        
+    Returns:
+        Dict with classification results.
+        
+    Example:
+        classification = classify_transaction({
+            "merchant": "Whole Foods",
+            "items": [{"name": "Milk"}, {"name": "Bread"}],
+            "total": 45.67
+        })
+        # Returns: {"category": "Food", "subcategory": "Groceries", ...}
+    """
+    merchant = transaction_data.get("merchant", "").lower()
+    items = transaction_data.get("items", [])
+    total = transaction_data.get("total", 0)
+    
+    # Define merchant patterns and rules
+    category_rules = _get_category_rules()
+    
+    # Check merchant name first
+    for rule in category_rules:
+        if any(pattern in merchant for pattern in rule["merchant_patterns"]):
+            return {
+                "category": rule["category"],
+                "subcategory": rule["subcategory"],
+                "is_discretionary": rule["is_discretionary"],
+                "recurrence_type": rule["recurrence_type"],
+                "confidence": "high"
+            }
+    
+    # Fallback: analyze items
+    if items:
+        return _classify_by_items(items, total)
+    
+    # Final fallback: amount-based heuristics
+    return _classify_by_amount(merchant, total)
+
+
+def _get_category_rules() -> List[Dict[str, Any]]:
+    """
+    Get merchant pattern classification rules.
+    
+    Returns:
+        List of classification rule dicts.
+    """
+    return [
+        {
+            "merchant_patterns": ["whole foods", "trader joe", "safeway", "kroger", "aldi", "costco"],
+            "category": "Food",
+            "subcategory": "Groceries",
+            "is_discretionary": False,
+            "recurrence_type": "weekly"
+        },
+        {
+            "merchant_patterns": ["mcdonald", "burger king", "wendy", "taco bell", "chipotle", "subway"],
+            "category": "Food",
+            "subcategory": "Restaurant",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        {
+            "merchant_patterns": ["shell", "chevron", "exxon", "bp", "gas station"],
+            "category": "Transportation",
+            "subcategory": "Fuel",
+            "is_discretionary": False,
+            "recurrence_type": "weekly"
+        },
+        {
+            "merchant_patterns": ["amazon", "walmart", "target", "best buy"],
+            "category": "Shopping",
+            "subcategory": "General",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        {
+            "merchant_patterns": ["netflix", "spotify", "hulu", "disney", "apple music"],
+            "category": "Entertainment",
+            "subcategory": "Streaming",
+            "is_discretionary": True,
+            "recurrence_type": "monthly"
+        },
+        {
+            "merchant_patterns": ["gym", "fitness", "la fitness", "equinox"],
+            "category": "Health",
+            "subcategory": "Fitness",
+            "is_discretionary": True,
+            "recurrence_type": "monthly"
+        },
+        {
+            "merchant_patterns": ["pharmacy", "walgreens", "cvs", "rite aid"],
+            "category": "Health",
+            "subcategory": "Pharmacy",
+            "is_discretionary": False,
+            "recurrence_type": "one_time"
+        }
+    ]
+
+
+def _classify_by_items(items: List[Dict[str, Any]], total: float) -> Dict[str, Any]:
+    """
+    Classify transaction based on purchased items.
+    
+    Args:
+        items: List of item dicts with 'name' field.
+        total: Total transaction amount.
+        
+    Returns:
+        Classification dict.
+    """
+    item_names = " ".join([item.get("name", "").lower() for item in items])
+    
+    # Food items
+    food_keywords = ["milk", "bread", "eggs", "cheese", "fruit", "vegetable", "meat", "chicken"]
+    if any(keyword in item_names for keyword in food_keywords):
+        return {
+            "category": "Food",
+            "subcategory": "Groceries",
+            "is_discretionary": False,
+            "recurrence_type": "weekly",
+            "confidence": "medium"
+        }
+    
+    # Default
+    return {
+        "category": "Uncategorized",
+        "subcategory": "Other",
+        "is_discretionary": True,
+        "recurrence_type": "one_time",
+        "confidence": "low"
+    }
+
+
+def _classify_by_amount(merchant: str, total: float) -> Dict[str, Any]:
+    """
+    Classify transaction based on amount patterns.
+    
+    Args:
+        merchant: Merchant name.
+        total: Transaction amount.
+        
+    Returns:
+        Classification dict.
+    """
+    # Small frequent transactions: likely daily spending
+    if total < 10:
+        return {
+            "category": "Uncategorized",
+            "subcategory": "Small Purchase",
+            "is_discretionary": True,
+            "recurrence_type": "one_time",
+            "confidence": "low"
+        }
+    
+    # Monthly subscription range
+    if 9.99 <= total <= 29.99:
+        return {
+            "category": "Uncategorized",
+            "subcategory": "Possible Subscription",
+            "is_discretionary": True,
+            "recurrence_type": "monthly",
+            "confidence": "low"
+        }
+    
+    # Default
+    return {
+        "category": "Uncategorized",
+        "subcategory": "Other",
+        "is_discretionary": True,
+        "recurrence_type": "one_time",
+        "confidence": "low"
+    }
