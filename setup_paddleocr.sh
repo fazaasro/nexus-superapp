@@ -1,6 +1,6 @@
 #!/bin/bash
 # ========================================================================
-# PaddleOCR Installation Script for Nexus
+# PaddleOCR Installation Script for Nexus (Ubuntu 24.04 Fixed)
 # ========================================================================
 # Author: Levy (Agent Faza)
 # Date: 2026-02-17
@@ -10,6 +10,11 @@
 # ========================================================================
 
 set -e  # Exit on error
+
+# Check for root if [ "$EUID" -eq 0 ]; then echo -e "\033[0;31m❌ Do not run this script as root (sudo)!
+   echo -e "\033[0;31mRun it as your normal user. The script will ask for sudo when needed."
+   exit 1
+fi
 
 COLOR_GREEN='\033[0;32m'
 COLOR_RED='\033[0;31m'
@@ -44,60 +49,71 @@ print_info() {
     echo -e "${COLOR_CYAN}ℹ️  $1${COLOR_NC}"
 }
 
-# Step 1: Create and Activate Virtual Environment
-print_header "Step 1: Create and Activate Virtual Environment"
+# Step 1: Create Virtual Environment
+print_header "Step 1: Create Virtual Environment"
 
-# Check if venv is available
-if ! command -v python3-venv &> /dev/null; then
-    print_info "python3-venv not found, trying with python3 -m venv..."
-    python3 -m venv paddle_env || {
-        print_error "Failed to create virtual environment with python3 -m venv"
-        exit 1
-    }
+if [ -d "paddle_env" ]; then
+    echo -e "${COLOR_CYAN}ℹ️ Virtual environment 'paddle_env' already exists. Skipping creation.${COLOR_NC}"
 else
-    python3-venv paddle_env || {
-        print_error "Failed to create virtual environment with python3-venv"
-        exit 1
-    }
-fi
+    print_info "Creating virtual environment 'paddle_env'..."
+
+    if command -v python3-venv &> /dev/null; then
+        python3-venv paddle_env || {
+            print_error "Failed to create venv with python3-venv"
+            print_info "Trying with python3 -m venv..."
+            python3 -m venv paddle_env || {
+                print_error "Failed to create virtual environment"
+                exit 1
+            }
+        }
+    else
+        print_info "python3-venv not found, trying with python3 -m venv..."
+        python3 -m venv paddle_env || {
+            print_error "Failed to create virtual environment"
+            exit 1
+        }
+    fi
 
 print_success "Virtual environment 'paddle_env' created"
 print_info "To activate in your terminal: source paddle_env/bin/activate"
 print_info "You will see (paddle_env) in your prompt"
 
-# Step 2: Install System Dependencies (ffmpeg, libsm6, etc.)
+# Step 2: Install System Dependencies (Ubuntu 24.04 Fixed)
 print_header "Step 2: Install System Dependencies"
 
-apt-get update -qq
-apt-get install -y ffmpeg libsm6 libxext6 libxrender1 libgl1-mesa-glx \
-    libglib2.0-0 libgthread-2.0-0 libgomp1 libfontconfig1 libgbm1 \
-    > /dev/null 2>&1
+print_info "Requesting sudo permissions for system libraries..."
+echo ""
+
+sudo apt-get update -qq
+# FIXED for Ubuntu 24.04: Replaced libgl1-mesa-glx with libgl1 (compatible with Noble)
+sudo apt-get install -y ffmpeg libsm6 libxext6 libxrender1 libgl1 \
+    libglib2.0-0 libgthread-2.0-0 libgomp1 libfontconfig1 libgbm1 > /dev/null 2>&1
 
 print_success "System dependencies installed"
 
-# Step 3: Activate Virtual Environment and Install PaddlePaddle (CPU)
-print_header "Step 3: Activate Virtual Environment and Install PaddlePaddle (CPU)"
+# Step 3: Activate Virtual Environment and Install Python Packages
+print_header "Step 3: Activate Virtual Environment and Install Python Packages"
 
-# Activate the virtual environment
+print_info "Activating virtual environment..."
 source paddle_env/bin/activate || {
     print_error "Failed to activate virtual environment"
     exit 1
 }
 
 print_success "Virtual environment activated (you should see (paddle_env) in prompt)"
-
-# Upgrade pip inside the virtual environment
 print_info "Upgrading pip inside virtual environment..."
 pip install --upgrade pip setuptools wheel > /dev/null 2>&1
 
-# Install PaddlePaddle (CPU version, defaults to CPU if no GPU dependencies found)
+# Step 4: Install PaddlePaddle (CPU)
+print_header "Step 4: Install PaddlePaddle (CPU)"
+
 print_info "Installing PaddlePaddle (CPU)..."
 pip install paddlepaddle-cpu > /dev/null 2>&1
 
 print_success "PaddlePaddle installed"
 
-# Step 4: Install PaddleOCR
-print_header "Step 4: Install PaddleOCR"
+# Step 5: Install PaddleOCR
+print_header "Step 5: Install PaddleOCR"
 
 print_info "Installing PaddleOCR..."
 pip install "paddleocr>=2.0.1" > /dev/null 2>&1
@@ -108,11 +124,11 @@ print_success "PaddleOCR installed"
 deactivate
 print_info "Virtual environment deactivated"
 
-# Step 5: Verify Installation
-print_header "Step 5: Verify PaddlePaddle Installation"
+# Step 6: Verify Installation
+print_header "Step 6: Verify PaddlePaddle Installation"
 
 print_info "Running verification tests..."
-python3 paddle_env/bin/python -c "
+paddle_env/bin/python -c "
 import sys
 try:
     import paddle
@@ -145,176 +161,102 @@ else
     exit 1
 fi
 
-# Step 6: Clean Up Old Containers
-print_header "Step 6: Clean Up Old Containers"
+# Step 7: Clean Up Old Containers
+print_header "Step 7: Clean Up Old Containers"
 
+echo "Stopping and removing old containers..."
 docker stop tesseract easyocr 2>/dev/null || true
 docker rm tesseract easyocr 2>/dev/null || true
 
 print_success "Old containers removed"
-
-# Step 7: Test PaddleOCR CLI
-print_header "Step 7: Test PaddleOCR CLI"
-
-print_info "To test PaddleOCR with a sample image:"
-echo ""
-echo -e "${COLOR_GREEN}paddleocr --image_dir ./your_test_image.jpg --use_angle_cls true --lang en --use_gpu false${COLOR_NC}"
-echo ""
-echo -e "${COLOR_YELLOW}Note: You need to activate the virtual environment first:${COLOR_NC}"
-echo -e "${COLOR_CYAN}source paddle_env/bin/activate${COLOR_NC}"
-echo ""
 
 # Step 8: Create Test Script
 print_header "Step 8: Create Test Script"
 
 cat > test_paddleocr.py << 'EOF'
 #!/usr/bin/env python3
-"""Test PaddleOCR with a sample image."""
+"""PaddleOCR Test Script
 
-from PIL import Image, ImageDraw, ImageFont
-import base64
+Tests PaddleOCR with a sample receipt image.
+Author: Levy (Agent Faza)
+Date: 2026-02-17
+"""
+
 import sys
 import os
 
-def create_test_image():
-    """Create a test receipt image."""
-    print("Creating test receipt image...")
+def main():
+    """Run PaddleOCR test."""
+    print("="*70)
+    print("PaddleOCR Quick Test")
+    print("="*70)
     
-    try:
-        img = Image.new('RGB', (600, 800), color='white')
-        draw = ImageDraw.Draw(img)
-        
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-        except:
-            font = ImageFont.load_default()
-        
-        y = 50
-        
-        # Merchant
-        draw.text((50, y), "SUPERMARKET", fill='black', font=font)
-        y += 40
-        
-        # Date
-        from datetime import datetime
-        draw.text((50, y), datetime.now().strftime("%Y-%m-%d %H:%M"), fill='black', font=font)
-        y += 40
-        
-        # Items
-        draw.text((50, y), "1. MILK 1L", fill='black', font=font)
-        y += 30
-        draw.text((450, y), "$2.99", fill='black', font=font)
-        y += 40
-        
-        draw.text((50, y), "2. BREAD", fill='black', font=font)
-        y += 30
-        draw.text((450, y), "$1.50", fill='black', font=font)
-        y += 40
-        
-        # Separator
-        draw.line([(50, y), (550, y)], fill='gray', width=2)
-        y += 50
-        
-        # Total
-        draw.text((50, y), "TOTAL", fill='black', font=font)
-        y += 30
-        draw.text((450, y), "$4.49", fill='black', font=font)
-        
-        test_path = "/tmp/test_receipt.jpg"
-        img.save(test_path, "JPEG", quality=95)
-        
-        print(f"Test image created: {test_path}")
-        return test_path
-        
-    except ImportError:
-        print("PIL not available. Skipping image generation.")
-        return None
-    except Exception as e:
-        print(f"Failed to create test image: {e}")
-        return None
-
-def test_ocr(image_path):
-    """Test OCR with PaddleOCR."""
-    print("Testing OCR with PaddleOCR...")
-    
+    # Check if PaddleOCR is available
     try:
         from paddleocr import PaddleOCR
-        
-        # Initialize PaddleOCR (CPU)
-        ocr = PaddleOCR(use_angle_cls=True, lang='en', use_gpu=False)
-        print("PaddleOCR initialized (use_angle_cls=True, lang='en', use_gpu=False)")
-        
-        # Read image
-        if not os.path.exists(image_path):
-            print(f"Error: Image file not found: {image_path}")
-            return
-        
-        # Run OCR
-        result = ocr.ocr(image_path, cls=True)
-        
-        # Display results
-        print("\n" + "="*70)
-        print("OCR Results:")
-        print("="*70)
-        
-        if result:
-            print(f"Detected {len(result)} regions")
-            
-            for i, line in enumerate(result):
-                if len(line) > 0:
-                    text = line[0][1] if len(line[0]) > 1 else ""
-                    confidence = line[0][2] if len(line[0]) > 2 else 0
-                    print(f"{i+1}. Text: \"{text}\" (Confidence: {confidence:.2f})")
-                else:
-                    print(f"{i+1}. Empty region")
-            
-            print("\n" + "="*70)
-            print("✅ PaddleOCR Test Complete!")
-            print("="*70)
-        else:
-            print("No text detected")
-            
-    except ImportError:
-        print("Error: PaddleOCR not installed")
-        print("Please install with: pip install paddleocr")
+        print("✅ PaddleOCR imported successfully!")
+    except ImportError as e:
+        print(f"❌ Failed to import PaddleOCR: {e}")
+        print("\nTroubleshooting:")
+        print("1. Make sure virtual environment is activated:")
+        print("   source paddle_env/bin/activate")
+        print("2. Check if PaddleOCR is installed:")
+        print("   pip show paddleocr")
+        sys.exit(1)
     except Exception as e:
-        print(f"Error during OCR: {e}")
+        print(f"❌ Unexpected error: {e}")
+        sys.exit(1)
+    
+    # Initialize PaddleOCR
+    print("\nInitializing PaddleOCR (CPU mode, English, angle classifier)...")
+    try:
+        ocr = PaddleOCR(use_angle_cls=True, lang='en', use_gpu=False)
+        print("✅ PaddleOCR initialized successfully!")
+    except Exception as e:
+        print(f"❌ Failed to initialize PaddleOCR: {e}")
+        sys.exit(1)
+    
+    print("\n" + "="*70)
+    print("PaddleOCR is ready to use!")
+    print("="*70)
+    
+    print("\nUsage:")
+    print("  from paddleocr import PaddleOCR")
+    print("  ocr = PaddleOCR(use_angle_cls=True, lang='en', use_gpu=False)")
+    print("  result = ocr.ocr('receipt.jpg', cls=True)")
+    print("  for line in result:")
+    print("      text = line[1]")
+    print("      confidence = line[1][1]")
+    
+    print("\nTo test with a receipt image:")
+    print("  python3 /home/ai-dev/.openclaw/workspace/test_paddleocr_detailed.py")
 
 if __name__ == "__main__":
-    print("="*70)
-    print("PaddleOCR Test Script")
-    print("="*70)
-    
-    # Create test image
-    test_image = create_test_image()
-    
-    if test_image:
-        # Test OCR
-        test_ocr(test_image)
-    else:
-        print("Skipping OCR test (no test image)")
+    main()
 EOF
 
 print_success "Test script created: test_paddleocr.py"
 
 # Final Summary
 echo ""
-echo -e "${COLOR_GREEN}=======================================================================${COLOR_NC}"
+echo -e "${COLOR_CYAN}=======================================================================${COLOR_NC}"
 echo -e "${COLOR_GREEN}✅ PaddleOCR Installation Complete!${COLOR_NC}"
-echo -e "${COLOR_GREEN}=======================================================================${COLOR_NC}"
+echo -e "${COLOR_CYAN}=======================================================================${COLOR_NC}"
 echo ""
 echo -e "${COLOR_CYAN}🚀 What's Next:${COLOR_NC}"
 echo ""
 echo -e "${COLOR_CYAN}1. Activate Virtual Environment:${COLOR_NC}"
 echo -e "${COLOR_CYAN}   source paddle_env/bin/activate${COLOR_NC}"
 echo ""
-echo -e "${COLOR_CYAN}2. Test PaddleOCR CLI:${COLOR_NC}"
-echo -e "${COLOR_CYAN}   paddleocr --image_dir test_receipt.jpg --use_angle_cls true --lang en --use_gpu false${COLOR_NC}"
-echo ""
-echo -e "${COLOR_CYAN}3. Run Test Script:${COLOR_NC}"
-echo -e "${COLOR_CYAN}   source paddle_env/bin/activate${COLOR_NC}"
+echo -e "${COLOR_CYAN}2. Test PaddleOCR:${COLOR_NC}"
 echo -e "${COLOR_CYAN}   python3 test_paddleocr.py${COLOR_NC}"
 echo ""
-echo -e "${COLOR_YELLOW}⚠️  Note: Virtual environment isolates PaddleOCR from system Python${COLOR_NC}"
-echo -e "${COLOR_YELLOW}   This prevents conflicts and installation issues${COLOR_NC}"
+echo -e "${COLOR_CYAN}3. Run Quick OCR Test:${COLOR_NC}"
+echo -e "${COLOR_CYAN}   paddleocr --image_dir test_receipt.jpg --use_angle_cls true --lang en --use_gpu false${COLOR_NC}"
 echo ""
+echo -e "${COLOR_CYAN}4. Integrate into Nexus Bag Module:${COLOR_NC}"
+echo -e "${COLOR_CYAN}   Update modules/bag/ocr.py to use PaddleOCR${COLOR_NC}"
+echo -e "${COLOR_CYAN}   Process receipts with PaddleOCR instead of OpenAI Vision${COLOR_NC}"
+echo ""
+echo -e "${COLOR_YELLOW}Note: Virtual environment isolates PaddleOCR from system Python${COLOR_NC}"
+echo -e "${COLOR_YELLOW}      This prevents conflicts and installation issues${COLOR_NC}"
