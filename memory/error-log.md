@@ -31,6 +31,12 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 
 ---
 
+## 2026-02-17
+
+- 🏗️ **Skills verification required** - Checked 11 skills, 6 require updates/fixes. monitoring-ops outdated (Grafana migration), google-cloud-ops inaccurate (gcloud not installed, should use gog), storage-wars-2026/performance-benchmark incomplete (no implementation scripts), cloudflare-ops needs API limitation notes. Full report in memory/skills-verification-report.md.
+
+---
+
 ## 2026-02-16
 
 - ⚠️ **QMD skills collection path** — Using relative path for skills collection matched 0 files. Use absolute path (~/.openclaw/workspace/skills) to index all skill subdirectories.
