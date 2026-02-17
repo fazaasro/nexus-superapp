@@ -23,6 +23,14 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 
 ---
 
+## 2026-02-17
+
+- 🔧 **cAdvisor invalid storage_driver** — cAdvisor v0.47.2 crashed with "unknown backend storage driver: docker". Root cause: `--storage_driver=docker` is not a valid option. Valid options: <empty>, bigquery, elasticsearch, influxdb, kafka, redis, statsd, stdout. Solution: Remove the storage_driver flag (default empty is fine for Prometheus scraping).
+- 🔧 **cAdvisor invalid disable_metrics** — cAdvisor crashed with "unsupported metric 'accelerator' specified". Root cause: "accelerator" is not a valid metric to disable. Valid metrics: advtcp,app,cpu,cpuLoad,cpu_topology,cpuset,disk,diskIO,hugetlb,memory,memory_numa,network,oom_event,percpu,perf_event,process,referenced_memory,resctrl,sched,tcp,udp. Solution: Remove "accelerator" from disabled metrics list.
+- 💡 **Docker Compose config changes** — Editing docker-compose.yml and running `restart` doesn't apply changes. Use `up -d --force-recreate` to rebuild container with new config.
+
+---
+
 ## 2026-02-16
 
 - ⚠️ **QMD skills collection path** — Using relative path for skills collection matched 0 files. Use absolute path (~/.openclaw/workspace/skills) to index all skill subdirectories.
