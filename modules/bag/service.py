@@ -562,10 +562,15 @@ def _get_category_rules() -> List[Dict[str, Any]]:
     """
     Get merchant pattern classification rules.
     
+    Supports:
+    - US/EU merchants (Whole Foods, Amazon, Netflix, etc.)
+    - Indonesian merchants (GoPay, Grab, Tokopedia, etc.)
+    
     Returns:
         List of classification rule dicts.
     """
     return [
+        # ========== US/EU MERCHANTS ==========
         {
             "merchant_patterns": ["whole foods", "trader joe", "safeway", "kroger", "aldi", "costco"],
             "category": "Food",
@@ -614,6 +619,137 @@ def _get_category_rules() -> List[Dict[str, Any]]:
             "subcategory": "Pharmacy",
             "is_discretionary": False,
             "recurrence_type": "one_time"
+        },
+        # ========== INDONESIAN MERCHANTS ==========
+        # E-Wallets
+        {
+            "merchant_patterns": ["gopay", "go-pay", "dompet anak bangsa"],
+            "category": "Finance",
+            "subcategory": "E-Wallet",
+            "is_discretionary": True,
+            "recurrence_type": "weekly"
+        },
+        {
+            "merchant_patterns": ["dana", "dana id", "ovo", "ovoid", "linkaja", "shopeepay"],
+            "category": "Finance",
+            "subcategory": "E-Wallet",
+            "is_discretionary": True,
+            "recurrence_type": "weekly"
+        },
+        # Transportation
+        {
+            "merchant_patterns": ["grab", "grab trans", "grabfood", "grab bike"],
+            "category": "Transportation",
+            "subcategory": "Ride Sharing",
+            "is_discretionary": True,
+            "recurrence_type": "daily"
+        },
+        {
+            "merchant_patterns": ["gojek", "go-jek", "go ride", "go food", "go-send"],
+            "category": "Transportation",
+            "subcategory": "Ride Sharing",
+            "is_discretionary": True,
+            "recurrence_type": "daily"
+        },
+        # Marketplaces
+        {
+            "merchant_patterns": ["tokopedia", "tokped", "toko"],
+            "category": "Shopping",
+            "subcategory": "Online Marketplace",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        {
+            "merchant_patterns": ["shopee", "shopee indonesia", "shopee pay"],
+            "category": "Shopping",
+            "subcategory": "Online Marketplace",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        {
+            "merchant_patterns": ["lazada", "bukalapak", "blibli", "jd.id"],
+            "category": "Shopping",
+            "subcategory": "Online Marketplace",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        # Travel
+        {
+            "merchant_patterns": ["traveloka", "tiket.com", "agoda", "booking.com", "doku agoda"],
+            "category": "Travel",
+            "subcategory": "Booking",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        # Convenience Stores / Groceries
+        {
+            "merchant_patterns": ["indomaret", "idm indomaret", "alfamart", "alfamidi", "circle k"],
+            "category": "Food",
+            "subcategory": "Groceries",
+            "is_discretionary": False,
+            "recurrence_type": "weekly"
+        },
+        # Food & Beverage
+        {
+            "merchant_patterns": ["warung", "nasi ", "bakmie", "bakso", "sate", "ayam", "kopi"],
+            "category": "Food",
+            "subcategory": "Restaurant",
+            "is_discretionary": True,
+            "recurrence_type": "daily"
+        },
+        # Banking
+        {
+            "merchant_patterns": ["bca", "mandiri", "bni", "bri", "biaya adm", "admin fee"],
+            "category": "Finance",
+            "subcategory": "Bank Fees",
+            "is_discretionary": False,
+            "recurrence_type": "monthly"
+        },
+        {
+            "merchant_patterns": ["bi-fast", "bifast", "switching", "kliring"],
+            "category": "Finance",
+            "subcategory": "Transfer",
+            "is_discretionary": False,
+            "recurrence_type": "one_time"
+        },
+        # QRIS Payments
+        {
+            "merchant_patterns": ["qris", "qr payment", "qr 0", "transaksi qr"],
+            "category": "Payment",
+            "subcategory": "QRIS",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        # ATM/Cash
+        {
+            "merchant_patterns": ["tarikan atm", "tarik tunai", "atm withdrawal"],
+            "category": "Finance",
+            "subcategory": "Cash Withdrawal",
+            "is_discretionary": True,
+            "recurrence_type": "weekly"
+        },
+        # Entertainment
+        {
+            "merchant_patterns": ["gwk", "garuda wisnu", "museum", "waterbom", "ancol"],
+            "category": "Entertainment",
+            "subcategory": "Attractions",
+            "is_discretionary": True,
+            "recurrence_type": "one_time"
+        },
+        {
+            "merchant_patterns": ["netflix indonesia", "spotify indonesia", "youtube premium", "disney+ hotstar"],
+            "category": "Entertainment",
+            "subcategory": "Streaming",
+            "is_discretionary": True,
+            "recurrence_type": "monthly"
+        },
+        # Utilities
+        {
+            "merchant_patterns": ["pln", "listrik", "pdam", "telkom", "indihome", "xl axiata", "telkomsel", "three", "tri"],
+            "category": "Utilities",
+            "subcategory": "Bills",
+            "is_discretionary": False,
+            "recurrence_type": "monthly"
         }
     ]
 
