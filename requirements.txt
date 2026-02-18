@@ -1,0 +1,26 @@
+# OpenClaw Workspace - Python Dependencies
+
+# Core
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.21.0
+
+# Linting/Formatting
+flake8>=6.1.0
+black>=23.7.0
+
+# OCR (Optional - install as needed)
+# easyocr>=1.7.0
+# paddleocr>=2.7.0
+# paddlepaddle>=2.5.0
+
+# API
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Database
+# sqlite3 (built-in)
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0

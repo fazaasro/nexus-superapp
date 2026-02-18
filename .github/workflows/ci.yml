@@ -1,0 +1,150 @@
+name: CI - Continuous Integration
+
+on:
+  push:
+    branches: [ master, dev ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint-python:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black
+
+      - name: Run Black formatter check
+        run: |
+          black --check modules/ api/ core/ *.py
+
+      - name: Run Flake8 linter
+        run: |
+          flake8 modules/ api/ core/ *.py --max-line-length=100
+
+  test-python:
+    name: Test Python Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run tests
+        run: |
+          pytest test_*.py -v --cov=modules --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  validate-docs:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for broken links
+        run: |
+          # Check markdown links
+          find . -name "*.md" -exec grep -H "](http" {} \; | head -20
+
+      - name: Validate README exists
+        run: |
+          if [ ! -f "README.md" ]; then
+            echo "❌ README.md not found"
+            exit 1
+          fi
+
+      - name: Validate AGENTS.md exists
+        run: |
+          if [ ! -f "AGENTS.md" ]; then
+            echo "❌ AGENTS.md not found"
+            exit 1
+          fi
+
+      - name: Validate TOOLS.md exists
+        run: |
+          if [ ! -f "TOOLS.md" ]; then
+            echo "❌ TOOLS.md not found"
+            exit 1
+          fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  check-skills:
+    name: Check Skills
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate skills directory structure
+        run: |
+          if [ ! -d "skills" ]; then
+            echo "❌ skills directory not found"
+            exit 1
+          fi
+
+      - name: Check for SKILL.md in each skill
+        run: |
+          for dir in skills/*/; do
+            if [ -d "$dir" ]; then
+              skill_name=$(basename "$dir")
+              if [ ! -f "${dir}SKILL.md" ]; then
+                echo "❌ $skill_name/SKILL.md not found"
+                exit 1
+              fi
+              echo "✅ $skill_name has SKILL.md"
+            fi
+          done
+
+      - name: Validate skills README
+        run: |
+          if [ ! -f "skills/README.md" ]; then
+            echo "❌ skills/README.md not found"
+            exit 1
+          fi

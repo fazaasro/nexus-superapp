@@ -1,0 +1,55 @@
+name: Sync Documentation to AAC Infrastructure
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'TOOLS.md'
+      - 'skills/**'
+      - '.github/**'
+
+jobs:
+  sync:
+    name: Sync Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workspace
+        uses: actions/checkout@v4
+        with:
+          path: workspace
+
+      - name: Checkout aac-infrastructure
+        uses: actions/checkout@v4
+        with:
+          repository: fazaasro/aac-infrastructure
+          token: ${{ secrets.GH_TOKEN }}
+          path: infrastructure
+
+      - name: Sync README
+        run: |
+          cp workspace/README.md infrastructure/workspace-README.md
+          echo "# Workspace README - $(date +%Y-%m-%d)" >> infrastructure/workspace-README.md
+
+      - name: Sync AGENTS.md
+        run: |
+          cp workspace/AGENTS.md infrastructure/workspace-AGENTS.md
+
+      - name: Sync TOOLS.md
+        run: |
+          cp workspace/TOOLS.md infrastructure/workspace-TOOLS.md
+
+      - name: Commit and push
+        run: |
+          cd infrastructure
+          git config user.name "Levy Agent"
+          git config user.email "levy@openclaw.ai"
+          git add workspace-*.md
+          git diff --cached
+          if [ $(git diff --cached --name-only | wc -l) -gt 0 ]; then
+            git commit -m "chore: sync workspace documentation from levy-agent"
+            git push origin main
+          else
+            echo "No changes to commit"
+          fi
