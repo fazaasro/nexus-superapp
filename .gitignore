@@ -61,3 +61,4 @@ temp/
 *.pid
 *.seed
 *.pid.lock
+aac-stack/

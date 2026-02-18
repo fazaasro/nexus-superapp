@@ -1,0 +1,47 @@
+# Cloudflare Tunnel Configuration
+# Account: levynexus001@gmail.com
+# Tunnel: levy-home-new (8678fb1a-f34e-4e90-b961-8151ffe8d051)
+
+tunnel: 8678fb1a-f34e-4e90-b961-8151ffe8d051
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Nexus Super App
+  - hostname: nexus.zazagaby.online
+    service: http://localhost:5173
+  - hostname: nexus-api.zazagaby.online
+    service: http://localhost:8000
+  
+  # Core Services
+  - hostname: admin.zazagaby.online
+    service: http://localhost:9000
+  - hostname: n8n.zazagaby.online
+    service: http://localhost:5678
+  - hostname: code.zazagaby.online
+    service: http://localhost:8443
+  - hostname: qdrant.zazagaby.online
+    service: http://localhost:6333
+  - hostname: agent.zazagaby.online
+    service: http://localhost:18789
+  
+  # Monitoring Stack (Grafana Migration)
+  - hostname: grafana.zazagaby.online
+    service: http://localhost:3000
+  - hostname: prometheus.zazagaby.online
+    service: http://localhost:9090
+  - hostname: node-exporter.zazagaby.online
+    service: http://localhost:9100
+  - hostname: blackbox.zazagaby.online
+    service: http://localhost:9115
+  
+  # Legacy (keep for compatibility)
+  - hostname: monitor.zazagaby.online
+    service: http://localhost:8501
+  - hostname: dev.zazagaby.online
+    service: http://localhost:9000
+  - hostname: sit.zazagaby.online
+    service: http://localhost:9000
+  - hostname: app.zazagaby.online
+    service: http://localhost:9000
+  
+  - service: http_status:404
