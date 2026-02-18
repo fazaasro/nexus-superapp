@@ -1,6 +1,104 @@
 # MEMORY.md - Long-Term Memory
 
-## Recent Updates (2026-02-17)
+## Recent Updates (2026-02-18)
+
+### 0. Skills Verification - 60% Need Updates 📊
+**Status:** 10 skills verified, 6 require action
+
+**Results:**
+- ✅ Accurate (4): docker-ops, github-ops, claude-skill-dev-guide, ini-compare
+- ⚠️ Outdated (2): monitoring-ops (needs Grafana), cloudflare-ops (API issues)
+- ❌ Incomplete (2): storage-wars-2026, performance-benchmark
+- ❌ Inaccurate (2): google-cloud-ops (gcloud not installed), pdf-reader (pdftotext not installed)
+
+**Key Issues:**
+- monitoring-ops still describes old Overseer dashboard (migrated to Grafana)
+- google-cloud-ops references gcloud CLI (should use gog CLI)
+- pdf-reader requires poppler-utils package (not installed)
+- storage-wars-2026 and performance-benchmark only have SKILL.md files
+
+**Recommendations:**
+- High priority: Fix google-cloud-ops, monitoring-ops, pdf-reader
+- Medium priority: Complete storage-wars-2026, performance-benchmark, document cloudflare-ops API limitations
+
+**Files:**
+- `/skills/github-ops/` - ✅ Verified accurate (gh CLI installed, authenticated)
+- `/skills/google-cloud-ops/` - ❌ Inaccurate (gcloud not installed)
+- `/skills/pdf-reader/` - ❌ Tools missing (pdftotext not installed)
+
+---
+
+### 1. Nexus OCR - Integration Ready 📸
+**Status:** OCR backend deployment pending (EasyOCR or OpenAI Vision API)
+
+**What's Ready:**
+- Complete OCR processor (`modules/bag/ocr.py`) with 2 backends:
+  - EasyOCR: Self-hosted, free, fast (recommended)
+  - OpenAI Vision API: Cloud-based, accurate, costs money
+- Transaction classification (6 categories, 8/8 tests passed)
+- Database schema (15 tables, multi-tenant)
+- Integration tests (`test_ocr_integration.py`)
+- Indonesian bank statement analysis (195 transactions)
+
+**Key Files:**
+- `/modules/bag/ocr.py` - OCR processor (7.5 KB)
+- `/modules/bag/service.py` - BagModule with ingest_receipt() (24 KB)
+- `/test_ocr_integration.py` - Integration tests (8.0 KB)
+- `/test_classification.py` - Classification tests (211 KB)
+
+**Deployment Options:**
+- EasyOCR: Deploy `jaidedai/easyocr` Docker image, bind to 127.0.0.1:5000
+- OpenAI Vision: Set `OPENAI_API_KEY` env var, run test with real receipt
+
+**Classification Features:**
+- Merchant pattern matching (20+ known merchants)
+- Item-based classification fallback
+- Amount-based heuristics (gas ~$50, streaming ~$15)
+- Discretionary flags (essential vs discretionary)
+- Recurrence prediction (one-time, weekly, monthly)
+- Confidence scoring (0.0-1.0)
+
+**Next Steps:**
+- Deploy EasyOCR service OR configure OpenAI API key
+- Test with real receipt image
+- Verify end-to-end OCR → classification pipeline
+
+---
+
+### 2. OpenClaw Upgrade - Issues 🔧
+**Status:** Update installed but restart not completing
+
+**What happened:**
+- Update command: `gateway update.run`
+- Version change: 2026.2.14 → 2026.2.17
+- Update result: ✅ Success (88 seconds, 676 packages changed)
+- Gateway restart: 🔄 Stuck (version still showing 2026.2.6-3)
+
+**Issues Encountered:**
+1. Gateway restart not completing
+   - Update installed successfully
+   - Version still showing old version
+   - Restart appears to be stuck
+
+2. System commands running slowly
+   - `sleep 5` took 36+ seconds
+   - `openclaw version` hung indefinitely
+   - Both processes killed with SIGKILL
+
+**Root Cause:** Unknown - possibly system load or gateway process hung during restart
+
+**Solution:** Manual intervention required:
+   - Check version: `openclaw version`
+   - Check logs: `journalctl -u openclaw-gateway -f`
+   - Manual restart: `openclaw gateway restart`
+
+**Files Updated:**
+- `memory/2026-02-18.md` - Daily log
+- `memory/error-log.md` - New errors logged
+
+---
+
+## Older Updates (2026-02-17)
 
 ### 0. cAdvisor Fix - Container Healthy ✅ COMPLETE
 **Status:** Invalid configuration flags removed, container now healthy

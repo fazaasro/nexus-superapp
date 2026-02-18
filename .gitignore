@@ -1,22 +1,25 @@
-# Node
+# Dependencies
 node_modules/
-bun.lock
-package.json
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+paddle_env/
+paddle_env2/
 venv/
-env/
-ENV/
-.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
 
-# Test data
-data/test/
-test_data/
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+*.log
 
 # IDE
 .vscode/
@@ -29,10 +32,32 @@ test_data/
 .DS_Store
 Thumbs.db
 
-# Temporary files
-*.tmp
-*.bak
-*.backup
+# Python
+*.egg-info/
+dist/
+build/
+*.egg
 
-# Other git repos
-aac-stack/
+# Data
+data/
+*.db
+*.sqlite
+
+# Models
+models/
+*.pth
+*.onnx
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker
+*.pid
+*.seed
+*.pid.lock

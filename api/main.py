@@ -9,6 +9,9 @@ from core.database import init_db, get_user_from_email
 
 # Import module routers
 from modules.bag.api import router as bag_router
+from modules.brain.api import router as brain_router
+from modules.circle.api import router as circle_router
+from modules.vessel.api import router as vessel_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,7 +20,7 @@ async def lifespan(app: FastAPI):
     init_db()
     print("🚀 Levy API starting up...")
     print("   - Database initialized")
-    print("   - Modules loaded: bag")
+    print("   - Modules loaded: bag, brain, circle, vessel")
     yield
     # Shutdown
     print("👋 Levy API shutting down...")
@@ -68,11 +71,14 @@ async def health_check():
         "status": "ok",
         "service": "levy-api",
         "version": "1.0.0",
-        "modules": ["bag"]
+        "modules": ["bag", "brain", "circle", "vessel"]
     }
 
 # Module routers
 app.include_router(bag_router, prefix="/api/v1/bag", tags=["The Bag"])
+app.include_router(brain_router, prefix="/api/v1/brain", tags=["The Brain"])
+app.include_router(circle_router, prefix="/api/v1/circle", tags=["The Circle"])
+app.include_router(vessel_router, prefix="/api/v1/vessel", tags=["The Vessel"])
 
 if __name__ == "__main__":
     import uvicorn

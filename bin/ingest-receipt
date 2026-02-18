@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+"""
+CLI command to ingest receipt images using PaddleOCR.
+
+Usage:
+    ingest-receipt <image_path> [--user USER_ID] [--lang LANGUAGE]
+
+Examples:
+    ingest-receipt ~/receipt.jpg
+    ingest-receipt ~/struk.jpg --user faza --lang id
+"""
+import os
+import sys
+import asyncio
+import argparse
+from pathlib import Path
+
+# Set environment variables before importing
+os.environ['FLAGS_use_mkldnn'] = '0'
+os.environ['PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK'] = 'True'
+
+# Add workspace to path
+workspace = Path(__file__).parent.parent
+sys.path.insert(0, str(workspace))
+
+from modules.bag.service import BagModule, classify_transaction
+
+
+async def ingest_receipt(image_path: str, user_id: str = 'faza', lang: str = 'en'):
+    """
+    Ingest a receipt image and extract transaction data.
+
+    Args:
+        image_path: Path to receipt image.
+        user_id: User ID for the transaction.
+        lang: Language code ('en', 'id', etc.)
+    """
+    print("="*70)
+    print("Receipt Ingestion with PaddleOCR")
+    print("="*70)
+
+    # Check if image exists
+    if not Path(image_path).exists():
+        print(f"❌ Error: Image not found: {image_path}")
+        return 1
+
+    print(f"\n📷 Image: {image_path}")
+    print(f"👤 User: {user_id}")
+    print(f"🌐 Language: {lang}")
+
+    # Initialize BagModule
+    bag = BagModule()
+
+    # Ingest receipt
+    print("\n⏳ Processing receipt...")
+    result = await bag.ingest_receipt(image_path, user_id=user_id)
+
+    if not result.get("success"):
+        print(f"\n❌ Ingestion failed: {result.get('error')}")
+        return 1
+
+    # Extract transaction data
+    transaction_data = result.get("transaction_data", {})
+    raw_text = result.get("raw_text", "")
+
+    print("\n" + "="*70)
+    print("Extracted Data:")
+    print("="*70)
+
+    # Display merchant
+    merchant = transaction_data.get("merchant")
+    if merchant:
+        print(f"\n🏪 Merchant: {merchant}")
+
+    # Display date
+    date = transaction_data.get("date")
+    if date:
+        print(f"📅 Date: {date}")
+
+    # Display items
+    items = transaction_data.get("items", [])
+    if items:
+        print(f"\n📦 Items ({len(items)}):")
+        for i, item in enumerate(items, 1):
+            name = item.get("name", "Unknown")
+            qty = item.get("quantity", 1)
+            price = item.get("price", 0)
+            print(f"  {i}. {name} x{qty} = Rp {price:,.0f}" if price > 1000 else f"  {i}. {name} x{qty} = ${price:.2f}")
+
+    # Display amounts
+    subtotal = transaction_data.get("subtotal")
+    if subtotal:
+        print(f"\n💰 Subtotal: {subtotal:,.0f}" if subtotal > 1000 else f"💰 Subtotal: ${subtotal:.2f}")
+
+    tax = transaction_data.get("tax")
+    if tax:
+        print(f"🧾 Tax: {tax:,.0f}" if tax > 1000 else f"🧾 Tax: ${tax:.2f}")
+
+    total = transaction_data.get("total")
+    if total:
+        print(f"💵 Total: {total:,.0f}" if total > 1000 else f"💵 Total: ${total:.2f}")
+
+    # Classify transaction
+    print("\n" + "="*70)
+    print("Transaction Classification:")
+    print("="*70)
+
+    classification = classify_transaction(transaction_data)
+    category = classification.get("category")
+    subcategory = classification.get("subcategory")
+    is_discretionary = classification.get("is_discretionary")
+    recurrence = classification.get("recurrence_type")
+
+    print(f"\n📂 Category: {category}")
+    print(f"📁 Subcategory: {subcategory}")
+    print(f"💡 Discretionary: {'Yes' if is_discretionary else 'No'}")
+    print(f"🔄 Recurrence: {recurrence}")
+
+    # Display confidence
+    confidence = result.get("confidence", 0)
+    print(f"\n🎯 Confidence: {confidence:.1%}")
+
+    # Ask if user wants to save
+    print("\n" + "="*70)
+    save = input("\n💾 Save this transaction to database? (y/n): ").strip().lower()
+
+    if save == 'y':
+        # Create transaction
+        txn_data = {
+            "merchant": merchant,
+            "amount": total,
+            "category": category.lower() if category else "lifestyle",
+            "raw_text": raw_text,
+            "tags": [subcategory.lower()] if subcategory else []
+        }
+
+        txn_result = bag.create_transaction(txn_data, user_id=user_id)
+        txn_id = txn_result.get("id")
+
+        if txn_id:
+            print(f"\n✅ Transaction saved: {txn_id}")
+            print(f"   Merchant: {merchant}")
+            print(f"   Amount: {total:,.0f}" if total > 1000 else f"   Amount: ${total:.2f}")
+            print(f"   Category: {category}")
+        else:
+            print(f"\n❌ Failed to save transaction")
+            return 1
+
+    print("\n" + "="*70)
+    print("✅ Receipt ingestion complete!")
+    print("="*70)
+
+    return 0
+
+
+def main():
+    """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description="Ingest receipt images using PaddleOCR",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s ~/receipt.jpg
+  %(prog)s ~/struk.jpg --user faza --lang id
+  %(prog)s /path/to/receipt.png --user gaby
+        """
+    )
+
+    parser.add_argument(
+        "image",
+        help="Path to receipt image file"
+    )
+
+    parser.add_argument(
+        "--user",
+        default="faza",
+        help="User ID (default: faza)"
+    )
+
+    parser.add_argument(
+        "--lang",
+        default="en",
+        choices=["en", "id", "ch", "korean", "japan"],
+        help="Language model (default: en)"
+    )
+
+    args = parser.parse_args()
+
+    # Run ingestion
+    exit_code = asyncio.run(ingest_receipt(args.image, args.user, args.lang))
+    sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()

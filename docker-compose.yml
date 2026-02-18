@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Backend API
+  nexus-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: nexus-api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/nexus.db
+      - SECRET_KEY=your-secret-key-here
+      - ENVIRONMENT=production
+    volumes:
+      - ./data:/app/data
+      - ./modules:/app/modules
+      - ./api:/app/api
+      - ./core:/app/core
+    restart: unless-stopped
+    networks:
+      - nexus-network
+
+  # Frontend
+  nexus-web:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+    container_name: nexus-web
+    ports:
+      - "5173:5173"
+      - "80:80"
+    depends_on:
+      - nexus-api
+    environment:
+      - VITE_API_URL=http://nexus-api:8000/api/v1
+    restart: unless-stopped
+    networks:
+      - nexus-network
+
+networks:
+  nexus-network:
+    driver: bridge

@@ -11,12 +11,6 @@
 
 set -e  # Exit on error
 
-# Check for root if [ "$EUID" -eq 0 ]; then echo -e "\033[0;31m❌ Do not run this script as root (sudo)!
-   echo -e "\033[0;31mRun it as your normal user. The script will ask for sudo when needed."
-   exit 1
-fi
-
-COLOR_GREEN='\033[0;32m'
 COLOR_RED='\033[0;31m'
 COLOR_YELLOW='\033[1;33m'
 COLOR_CYAN='\033[0;36m'
@@ -124,7 +118,21 @@ print_success "PaddleOCR installed"
 deactivate
 print_info "Virtual environment deactivated"
 
-# Step 6: Verify Installation
+# Step 6: Create Deactivate Script (Fixes MKLDNN)
+print_header "Step 6: Create Deactivate Script"
+
+cat > paddle_env/bin/deactivate << 'EOF'
+#!/bin/bash
+unset FLAGS_use_mkldnn  # Clear MKLDNN flag on exit
+unset _OLD_VIRTUAL_PATH
+deactivate -n 2>/dev/null || true
+EOF
+
+chmod +x paddle_env/bin/deactivate
+
+print_success "Deactivate script created (clears MKLDNN on exit)"
+
+# Step 7: Verify Installation
 print_header "Step 6: Verify PaddlePaddle Installation"
 
 print_info "Running verification tests..."

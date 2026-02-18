@@ -9,14 +9,20 @@ pytest-asyncio>=0.21.0
 flake8>=6.1.0
 black>=23.7.0
 
+# API Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# CORS
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
 # OCR (Optional - install as needed)
 # easyocr>=1.7.0
 # paddleocr>=2.7.0
 # paddlepaddle>=2.5.0
-
-# API
-flask>=3.0.0
-flask-cors>=4.0.0
 
 # Database
 # sqlite3 (built-in)
@@ -24,3 +30,9 @@ flask-cors>=4.0.0
 # Utilities
 python-dotenv>=1.0.0
 requests>=2.31.0
+
+# WebSockets (for real-time updates)
+websockets>=12.0
+
+# HTTP client
+httpx>=0.25.0

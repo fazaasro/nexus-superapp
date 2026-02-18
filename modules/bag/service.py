@@ -411,6 +411,62 @@ class BagModule:
             }
 
 
+def _extract_price(text: str) -> Optional[float]:
+    """
+    Extract price from text, supporting multiple currency formats.
+
+    Supports:
+    - $14.99, $1,234.56
+    - Rp 14.500, Rp 1.234.567 (Indonesian format with dots as thousands)
+    - 14.99, 14,99 (European format)
+
+    Args:
+        text: Text containing a price.
+
+    Returns:
+        Price as float, or None if not found.
+    """
+    if not text:
+        return None
+
+    # Try Indonesian format first: Rp XX.XXX or Rp X.XXX.XXX
+    # Note: Indonesian uses dot as thousands separator (e.g., "Rp 88.000" = 88000)
+    rp_match = re.search(r'Rp\s*([\d\.,]+)', text)
+    if rp_match:
+        amount_str = rp_match.group(1)
+        # Remove all dots (thousands separators) to get the raw number
+        amount_str = amount_str.replace('.', '')
+        # Replace comma with dot (for decimal separator)
+        amount_str = amount_str.replace(',', '.')
+        try:
+            return float(amount_str)
+        except ValueError:
+            pass
+
+    # Try standard USD/EUR format: $XX.XX or XX.XX
+    # Match: $14.99, 14.99, 1,234.56, etc.
+    # Use word boundary and ensure we don't match Indonesian thousands
+    if 'Rp' not in text:  # Only apply if not Indonesian format
+        # Check if this looks like a decimal (has cents)
+        decimal_match = re.search(r'[\$]?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', text)
+        if decimal_match:
+            amount_str = decimal_match.group(1).replace(',', '')
+            try:
+                return float(amount_str)
+            except ValueError:
+                pass
+
+    # Try plain number
+    plain_match = re.search(r'\b(\d+(?:\.\d+)?)\b', text)
+    if plain_match:
+        try:
+            return float(plain_match.group(1))
+        except ValueError:
+            pass
+
+    return None
+
+
 def _parse_ocr_response(raw_text: str) -> Dict[str, Any]:
     """
     Parse OCR text response into structured transaction data.
@@ -445,10 +501,12 @@ def _parse_ocr_response(raw_text: str) -> Dict[str, Any]:
 def _extract_fallback_data(text: str) -> Dict[str, Any]:
     """
     Fallback extraction when JSON parsing fails.
-    
+
+    Enhanced to handle PaddleOCR output format.
+
     Args:
-        text: Raw OCR text.
-        
+        text: Raw OCR text (newline-separated lines).
+
     Returns:
         Dict with basic extracted fields.
     """
@@ -461,49 +519,131 @@ def _extract_fallback_data(text: str) -> Dict[str, Any]:
         "total": None,
         "payment_method": None
     }
-    
-    # Extract totals (look for $XX.XX pattern)
-    totals = re.findall(r'\$?(\d+\.\d{2})', text)
-    if totals:
-        # Last total is usually the grand total
-        data["total"] = float(totals[-1])
-        if len(totals) > 1:
-            data["subtotal"] = float(totals[0])
-        if len(totals) > 2:
-            data["tax"] = float(totals[1])
-    
-    # Extract date (common formats)
-    date_patterns = [
-        r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
-        r'(\d{4}[/-]\d{1,2}[/-]\d{1,2})',
-    ]
-    for pattern in date_patterns:
-        match = re.search(pattern, text)
-        if match:
-            data["date"] = match.group(1)
-            break
-    
+
+    # Split text into lines
+    lines = text.strip().split('\n') if text else []
+    lines = [line.strip() for line in lines if line.strip()]
+
+    if not lines:
+        return data
+
+    # Extract merchant (usually the first line that's not a date)
+    for line in lines:
+        # Skip date-like lines
+        if re.match(r'^\d{4}-\d{2}-\d{2}', line) or re.match(r'^\d{2}/\d{2}/\d{2,4}', line):
+            continue
+        # Skip "TOTAL" or similar keywords
+        if line.upper() in ['TOTAL', 'SUBTOTAL', 'TAX', 'GRAND TOTAL']:
+            continue
+        # First meaningful line is likely the merchant
+        data["merchant"] = line
+        break
+
+    # Extract items, subtotal, tax, and total
+    # Pattern: "1. ITEM NAME" followed by price
+    # Supports: $14.99, Rp 14.500, 14.99, etc.
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # Check if this line looks like an item (starts with number + dot)
+        item_match = re.match(r'^(\d+)\.\s+(.+)$', line)
+        if item_match:
+            item_name = item_match.group(2)
+            # Look ahead for price on next line
+            if i + 1 < len(lines):
+                next_line = lines[i + 1]
+                # Check if next line is a price (supports $XX.XX, Rp XX.XXX, XX.XXX)
+                price = _extract_price(next_line)
+                if price is not None:
+                    # Skip if it's a total line
+                    if next_line.upper() not in ['SUBTOTAL', 'TOTAL', 'TAX', 'JUMLAH']:
+                        data["items"].append({
+                            "name": item_name,
+                            "quantity": int(item_match.group(1)),
+                            "price": price
+                        })
+                        i += 2
+                        continue
+
+        # Check for totals (keywords followed by amount)
+        if line.upper() in ['SUBTOTAL', 'SUM', 'JUMLAH']:
+            if i + 1 < len(lines):
+                price = _extract_price(lines[i + 1])
+                if price is not None:
+                    data["subtotal"] = price
+
+        elif line.upper() in ['TAX', 'VAT', 'TAX (10%)', 'TAX (10%)', 'PPN', 'PPN 11%']:
+            if i + 1 < len(lines):
+                price = _extract_price(lines[i + 1])
+                if price is not None:
+                    data["tax"] = price
+
+        elif line.upper() in ['TOTAL', 'GRAND TOTAL', 'AMOUNT']:
+            if i + 1 < len(lines):
+                price = _extract_price(lines[i + 1])
+                if price is not None:
+                    data["total"] = price
+
+        # Extract date (common formats)
+        if not data.get("date"):
+            date_patterns = [
+                r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})',  # 2026-02-18 10:30
+                r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+                r'(\d{4}[/-]\d{1,2}[/-]\d{1,2})',
+            ]
+            for pattern in date_patterns:
+                match = re.search(pattern, line)
+                if match:
+                    data["date"] = match.group(1)
+                    break
+
+        i += 1
+
+    # If we still don't have a total, look for the largest amount
+    if not data.get("total"):
+        # Try to extract all prices and get the largest
+        all_prices = []
+        for line in lines:
+            price = _extract_price(line)
+            if price is not None and price > 0:
+                all_prices.append(price)
+
+        if all_prices:
+            # The largest price is usually the total
+            data["total"] = max(all_prices)
+
     return data
 
 
 def _calculate_confidence(transaction_data: Dict[str, Any]) -> float:
     """
     Calculate confidence score based on completeness of extracted data.
-    
+
     Args:
         transaction_data: Extracted transaction data.
-        
+
     Returns:
         Confidence score 0.0 to 1.0.
     """
     required_fields = ["merchant", "date", "total"]
     optional_fields = ["items", "subtotal", "tax", "payment_method"]
-    
+
     required_score = sum(1 for field in required_fields if transaction_data.get(field))
     optional_score = sum(1 for field in optional_fields if transaction_data.get(field))
-    
-    # Weight required fields higher
-    confidence = (required_score * 0.3 + optional_score * 0.1) / len(required_fields)
+
+    # Additional points for having items
+    items_bonus = 0.2 if transaction_data.get("items") and len(transaction_data["items"]) > 0 else 0
+
+    # Calculate base confidence from required fields (max 0.6)
+    required_confidence = (required_score / len(required_fields)) * 0.6
+
+    # Add optional fields bonus (max 0.2)
+    optional_confidence = (optional_score / len(optional_fields)) * 0.2
+
+    # Total confidence
+    confidence = required_confidence + optional_confidence + items_bonus
+
     return min(confidence, 1.0)
 
 
@@ -691,7 +831,7 @@ def _get_category_rules() -> List[Dict[str, Any]]:
         },
         # Food & Beverage
         {
-            "merchant_patterns": ["warung", "nasi ", "bakmie", "bakso", "sate", "ayam", "kopi"],
+            "merchant_patterns": ["warung", "restoran", "resto", "nasi ", "bakmie", "bakso", "sate", "ayam", "kopi", "es teh"],
             "category": "Food",
             "subcategory": "Restaurant",
             "is_discretionary": True,
