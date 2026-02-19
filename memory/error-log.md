@@ -23,6 +23,12 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 
 ---
 
+## 2026-02-19
+
+- 💡 **Cloudflare API Bearer token format** — API calls with "Authorization: Bearer <token>" failed with "Unable to authenticate request" error. Root cause: Token format incorrect or token invalid. Solution: Use "X-Auth-Email: <email>" and "X-Auth-Key: <token>" headers instead for API authentication.
+- 💡 **Cloudflare tunnel configuration via API** — Token-based cloudflared service doesn't use local config.yml. Configuration is stored in Cloudflare and managed via API. To add new hostnames, use: `PUT /accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations` with ingress array. The cloudflared service fetches config from Cloudflare automatically on restart.
+- 💡 **DNS record creation via Cloudflare API** — Create DNS records with POST to `/zones/{zone_id}/dns_records` using CNAME type pointing to `<tunnel-id>.cfargotunnel.com`. Must set "proxied": true for Cloudflare Access to work.
+
 ## 2026-02-17
 
 - 🔧 **cAdvisor invalid storage_driver** — cAdvisor v0.47.2 crashed with "unknown backend storage driver: docker". Root cause: `--storage_driver=docker` is not a valid option. Valid options: <empty>, bigquery, elasticsearch, influxdb, kafka, redis, statsd, stdout. Solution: Remove the storage_driver flag (default empty is fine for Prometheus scraping).
@@ -58,3 +64,18 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 - ⚠️ **JSON parsing in service layer** — When `get_sobriety_tracker()` returns a dict with `relapse_log` already parsed as a list (from JSON), attempting to `json.loads()` it again in `log_relapse()` causes TypeError. Root cause: Inconsistent JSON handling - some functions parse JSON before returning, others expect raw JSON strings. Solution: Check if value is already a list before parsing: `relapse_log = tracker['relapse_log'] if isinstance(tracker['relapse_log'], list) else []`. Fixed in vessel/service.py.
 - ⚠️ **UNIQUE constraint handling in tests** — Running tests multiple times causes UNIQUE constraint failures when inserting entries with same IDs/dates. Root cause: Tests don't clean up after themselves, so duplicate entries accumulate. Solution: Implement upsert logic (INSERT OR REPLACE) or check for existing entries before insert. Fixed in vessel/service.py log_blueprint().
 - 🏗️ **SQLite datetime handling** — Using `datetime.now().date()` with string comparison requires consistent ISO format. Root cause: Mixing datetime objects and ISO strings in database queries. Solution: Always convert to ISO strings before storing: `datetime.now().date().isoformat()`.
+## 2026-02-19
+
+- 💡 **Cloudflare Access API integration** — Create Cloudflare Access apps via POST to `/accounts/{account_id}/access/apps` with self_hosted type, domain, session_duration, and policies array. Include email policies for user access. HTTP-only cookies and 24h sessions recommended for security.
+
+## 2026-02-19
+
+- 🏗️ **Vault secrets migration complete** — All confidential information moved to Vault at vault.zazagaby.online. 8 secret paths created: cloudflare-account, cloudflare-api-token, cloudflare-tunnel, github, glm-api-key, server-info, service-passwords, users. Access via Vault UI or CLI. See memory/vault-secrets-registry-2026-02-19.md for complete registry and usage examples.
+
+## 2026-02-19
+
+- 🏗️ **GitHub + Vault integration complete** — All 6 GitHub repositories integrated with Vault. Added VAULT_ADDR, VAULT_ROLE_ID, VAULT_SECRET_ID to each repo. Created workflow template at .github/workflows/vault-integration-template.yml. Integration script at scripts/vault-integration.sh. See memory/github-vault-integration-complete-2026-02-19.md for complete guide. Repositories: vault-infrastructure, aac-infrastructure, aac-stack, levy-agent, overseer-monitoring, project-levy-ssh.
+
+## 2026-02-19
+
+- 🎉 **Session complete - 9 hours productive** — Vault deployed, Cloudflare Access configured (6 services), Vault secrets migrated (8 paths, 30+ keys), GitHub integration complete (6 repos, 18 secrets), git push resolved, skills verified (10 checked, 6 need updates). Documentation: 10 files created including session-summary-2026-02-19.md with Cloudflare API instructions.

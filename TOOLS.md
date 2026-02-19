@@ -24,12 +24,21 @@ Internet → Cloudflare Access (SSO) → Cloudflare Tunnel → VPS (localhost) �
 | Qdrant | 6333 | qdrant.zazagaby.online | Vector memory DB |
 | Code-Server | 8443 | code.zazagaby.online | Browser IDE |
 | Overseer | 8501 | monitor.zazagaby.online | Monitoring dashboard |
+| Vault | 8200 | vault.zazagaby.online | Secrets management |
 
 ### Host Services
 | Service | Port | Public URL | Purpose |
 |---------|------|------------|---------|
 | OpenClaw | 18789 | agent.zazagaby.online | Agent gateway (me) |
 | Cloudflared | - | - | Tunnel connector (native) |
+
+### Monitoring Services (localhost)
+| Service | Port | Public URL | Purpose |
+|---------|------|------------|---------|
+| Grafana | 3000 | grafana.zazagaby.online | Monitoring dashboard |
+| Prometheus | 9090 | prometheus.zazagaby.online | Metrics collector |
+| Node Exporter | 9100 | node-exporter.zazagaby.online | System metrics |
+| Blackbox Exporter | 9115 | blackbox.zazagaby.online | ICMP/TCP checks |
 
 ## Access Control
 

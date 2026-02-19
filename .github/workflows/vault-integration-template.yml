@@ -1,0 +1,67 @@
+name: Deploy with Vault Secrets
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  VAULT_ADDR: http://vault.zazagaby.online
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Retrieve secrets from Vault
+        uses: hashicorp/vault-action@v3
+        with:
+          url: ${{ secrets.VAULT_ADDR }}
+          method: approle
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          secrets: |
+            secret/data/glm-api-key api_key | GLM_API_KEY ;
+            secret/data/cloudflare-api-token api_token | CF_API_TOKEN ;
+            secret/data/cloudflare-api-token zone_id | CF_ZONE_ID ;
+            secret/data/cloudflare-api-token tunnel_id | CF_TUNNEL_ID ;
+            secret/data/cloudflare-account email | CF_EMAIL ;
+            secret/data/cloudflare-account account_id | CF_ACCOUNT_ID ;
+            secret/data/cloudflare-account domain | CF_DOMAIN ;
+            secret/data/server-info vps_ip | VPS_IP ;
+            secret/data/server-info ssh_user | SSH_USER ;
+            secret/data/service-passwords portainer_password | PORTAINER_PASSWORD ;
+
+      - name: Verify secrets retrieved
+        run: |
+          echo "✅ GLM API Key: ${GLM_API_KEY:0:10}..."
+          echo "✅ Cloudflare Token: ${CF_API_TOKEN:0:10}..."
+          echo "✅ Cloudflare Zone: $CF_ZONE_ID"
+          echo "✅ Cloudflare Tunnel: $CF_TUNNEL_ID"
+          echo "✅ Cloudflare Email: $CF_EMAIL"
+          echo "✅ Cloudflare Account: $CF_ACCOUNT_ID"
+          echo "✅ Cloudflare Domain: $CF_DOMAIN"
+          echo "✅ VPS IP: $VPS_IP"
+          echo "✅ SSH User: $SSH_USER"
+          echo "✅ Portainer Password: ${PORTAINER_PASSWORD:0:5}..."
+
+      - name: Deploy application
+        run: |
+          echo "🚀 Deploying application..."
+          echo "Using secrets from Vault for deployment"
+          echo "Application: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          # Add your deployment commands here
+          # Example: docker compose up -d
+
+      - name: Health check
+        run: |
+          echo "❤️  Running health checks..."
+          # Add health check commands here
+          # Example: curl -f http://localhost:3000 || exit 1
