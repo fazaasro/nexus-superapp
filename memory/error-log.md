@@ -67,15 +67,3 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 ## 2026-02-19
 
 - 💡 **Cloudflare Access API integration** — Create Cloudflare Access apps via POST to `/accounts/{account_id}/access/apps` with self_hosted type, domain, session_duration, and policies array. Include email policies for user access. HTTP-only cookies and 24h sessions recommended for security.
-
-## 2026-02-19
-
-- 🏗️ **Vault secrets migration complete** — All confidential information moved to Vault at vault.zazagaby.online. 8 secret paths created: cloudflare-account, cloudflare-api-token, cloudflare-tunnel, github, glm-api-key, server-info, service-passwords, users. Access via Vault UI or CLI. See memory/vault-secrets-registry-2026-02-19.md for complete registry and usage examples.
-
-## 2026-02-19
-
-- 🏗️ **GitHub + Vault integration complete** — All 6 GitHub repositories integrated with Vault. Added VAULT_ADDR, VAULT_ROLE_ID, VAULT_SECRET_ID to each repo. Created workflow template at .github/workflows/vault-integration-template.yml. Integration script at scripts/vault-integration.sh. See memory/github-vault-integration-complete-2026-02-19.md for complete guide. Repositories: vault-infrastructure, aac-infrastructure, aac-stack, levy-agent, overseer-monitoring, project-levy-ssh.
-
-## 2026-02-19
-
-- 🎉 **Session complete - 9 hours productive** — Vault deployed, Cloudflare Access configured (6 services), Vault secrets migrated (8 paths, 30+ keys), GitHub integration complete (6 repos, 18 secrets), git push resolved, skills verified (10 checked, 6 need updates). Documentation: 10 files created including session-summary-2026-02-19.md with Cloudflare API instructions.
