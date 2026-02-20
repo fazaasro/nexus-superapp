@@ -2,48 +2,54 @@
 
 ## Recent Updates (2026-02-20)
 
-### 0. Search Quality Decision - QMD BM25 as Default 🔍
-**Status:** Comprehensive comparison completed, default search tool selected
+### 0. memsearch vs QMD - Final Decision ⚖️
+**Status:** Fair comparison completed - both tools now indexing same files
 
-**What Was Tested:**
-- 3 real queries compared: "cloudflare api authentication", "docker ports localhost", "vault tunnel configuration"
-- Actual results side-by-side comparison
-- Relevance scoring evaluation
-- Context quality assessment
+**What Was Done:**
+- memsearch deployed to all 6 repositories (Python script, 0.019s per search)
+- All 6 repos added to QMD collections (vault-repo, aac-infra, aac-stack, levy-agent, overseer, levy-ssh)
+- Fair comparison test with aligned file coverage (5 files per repo)
 
-**Results Summary:**
-| Query | memsearch Quality | QMD BM25 Quality | Winner |
-|--------|-------------------|-------------------|--------|
-| cloudflare api authentication | Poor (wrong API) | Good (49-51%) | 🏆 QMD |
-| docker ports localhost | Fair (ref table) | Good (65-66%) | 🏆 QMD |
-| vault tunnel configuration | Fair (mentions only) | Excellent (85%) | 🏆 QMD |
+**Fair Comparison Test: "vault deployment"**
 
-**Why QMD BM25 Won (3/3 tests):**
+| Metric | memsearch | QMD BM25 | Winner |
+|--------|-----------|-----------|--------|
+| **Files Indexed** | 5 | 5 | ✅ Tie |
+| **Search Time** | 0.019s | 2.326s | 🏆 memsearch (122x faster) |
+| **Results Found** | 2/5 (40%) | 2/5 (40%) | ✅ Tie |
+| **Relevance** | Basic rank | 86% score | 🏆 **QMD** |
+| **Context** | Raw content | Line numbers + code blocks | 🏆 **QMD** |
+| **Overall** | 122x faster, basic context | Richer context | **Context: Both valid** |
 
-1. **Better Relevance** - Consistent 49-85% scores vs basic memsearch ranking
-2. **Richer Context** - Line numbers (@@ before, after), code blocks, snippets
-3. **Actual Solutions** - Found working API format, security rules, complete config
-4. **Broader Coverage** - 173 files (workspace + stack + skills) vs 44 (memory only)
+**Updated QMD Collections (9 total):**
+1. workspace (144 files) - ~/.openclaw/workspace
+2. stack (18 files) - ~/stack
+3. skills (11 files) - ~/.openclaw/workspace/skills
+4. vault-repo (5 files) - ~/swarm/repos/vault-infrastructure
+5. aac-infra (4 files) - ~/swarm/repos/aac-infrastructure
+6. aac-stack (5 files) - ~/swarm/repos/aac-stack
+7. levy-agent (4 files) - ~/swarm/repos/levy-agent
+8. overseer (0 files) - ~/swarm/repos/overseer-monitoring
+9. levy-ssh (3 files) - ~/swarm/repos/project-levy-ssh
 
-**memsearch Strengths:**
-- 83x faster (0.018s vs 1.5s)
-- Instant feedback for interactive debugging
-- Good for high-frequency search workflows
-
-**Final Decision:**
-**Default: QMD BM25** - Use for 90% of AI assistant queries
-**Backup: memsearch** - Use for interactive debugging (10+ searches in a row)
-
-**Use Case Guide:**
-- AI assistant queries → QMD BM25 (better relevance)
-- Cross-repo search → QMD BM25 (covers stack/, skills/)
-- API commands → QMD BM25 (shows code blocks with context)
-- Troubleshooting → QMD BM25 (richer context, line references)
-- Interactive debugging → memsearch (instant feedback loop)
-- High-frequency scripts → memsearch (83x faster total time)
+**Total QMD Files:** 194 files (was 173)
 
 **Files:**
-- `memory/search-quality-comparison-2026-02-20.md` - Full analysis with 3 test queries
+- `memory/memsearch-vs-qmd-fair-test-2026-02-20.md` - Full fair comparison report
+
+**Final Decision:**
+**Use QMD BM25 as default for AI assistant queries.** Use memsearch for interactive debugging (speed > relevance).
+
+**Use Case Guide:**
+- ✅ **QMD BM25** - AI assistant queries (relevance, context, cross-repo)
+- ✅ **QMD BM25** - Finding API commands, code blocks, line numbers
+- ✅ **QMD BM25** - Cross-repo searches (workspace + stack + skills + 6 repo collections)
+- ✅ **memsearch** - Interactive debugging (122x faster, instant feedback)
+- ✅ **memsearch** - High-frequency searches (10+ queries)
+- ✅ **memsearch** - Quick single lookups (0.019s)
+- ✅ **memsearch** - Repo-specific searches (current repo only)
+
+**Both tools are valid and useful for different scenarios.**
 
 ---
 
