@@ -2,22 +2,24 @@
 name: monitoring-ops
 version: 1.0.0
 description: |
-  Overseer monitoring dashboard operations, metrics collection, and alerting for the AAC infrastructure.
+  Grafana monitoring dashboard operations, metrics collection, and alerting for the AAC infrastructure.
+  Migrated from Overseer to Grafana dashboards.
 
 when_to_use:
-  - Checking system health via Overseer
+  - Checking system health via Grafana
   - Analyzing metrics and trends
   - Viewing security events
   - Checking service statuses
   - Reviewing token usage and tool statistics
 
 when_not_to_use:
-  - Just viewing current metrics (use Overseer dashboard instead)
+  - Just viewing current metrics (use Grafana dashboard directly)
   - Non-monitoring system checks
   - One-time health checks (use individual service checks)
 
 tools_involved:
-  - overseer-dashboard (web interface)
+  - grafana-dashboard (web interface at monitor.zazagaby.online)
+  - prometheus (metrics backend)
   - sqlite-query (for direct data access)
 
 network_policy: restricted
@@ -48,8 +50,8 @@ Checks overall status of all monitored services via Overseer.
 None
 
 **Steps:**
-1. Navigate to https://monitor.zazagaby.online
-2. Review "Health Status" tab
+1. Navigate to https://monitor.zazagaby.online (Grafana)
+2. Review "AAC Infrastructure" dashboard
 3. Check service status indicators
 4. Review metrics trends
 
@@ -82,8 +84,8 @@ Analyzes performance trends over time.
 - `period`: Time period (default: 24h)
 
 **Steps:**
-1. Navigate to Overseer dashboard
-2. Select "Trends" tab
+1. Navigate to Grafana dashboard at monitor.zazagaby.online
+2. Select "AAC Infrastructure" or "Performance" dashboard
 3. Review CPU, RAM, and latency charts
 4. Identify any spikes or degradation
 
@@ -168,7 +170,7 @@ Reviews OpenClaw agent metrics.
 None
 
 **Steps:**
-1. Navigate to "OpenClaw" tab
+1. Navigate to "OpenClaw" or "Agents" dashboard in Grafana
 2. Review active sessions
 3. Check average latency
 4. Review tool usage frequency
@@ -254,7 +256,7 @@ Reported by Overseer
 
 - Checking if service is up → Use `docker-check` helper for container status
 - One-time health check → Use `curl` or individual service access
-- Accessing raw database → Use dashboard interface
+- Accessing raw Prometheus metrics → Use dashboard interface
 
 ### What to do instead
 
@@ -269,7 +271,7 @@ check_status
 docker-check
 
 # For detailed monitoring
-navigate to https://monitor.zazagaby.online
+navigate to https://monitor.zazagaby.online (Grafana)
 ```
 
 ---
@@ -277,21 +279,22 @@ navigate to https://monitor.zazagaby.online
 ## Artifact Locations
 
 All artifacts created by this skill go to:
-- `https://monitor.zazagaby.online` — Dashboard interface
-- `/home/ai-dev/swarm/repos/overseer/data/metrics.db` — Metrics database
+- `https://monitor.zazagaby.online` — Grafana dashboard interface
+- `/home/ai-dev/swarm/repos/overseer/data/metrics.db` — Prometheus metrics database
 
 ---
 
-## Dashboard Tabs
+## Available Dashboards
 
-1. **Health Status** — Real-time service health
-2. **Trends** — Performance charts over time
-3. **Security** — Security events and alerts
-4. **Network** — Port status and traffic
-5. **OpenClaw** — Agent metrics and usage
+1. **AAC Infrastructure** — Main overview of all services
+2. **Docker Containers** — Container health and metrics
+3. **System Resources** — CPU, RAM, disk usage
+4. **Network Traffic** — Port status and bandwidth
+5. **OpenClaw Metrics** — Agent sessions and performance (if available)
 
 ---
 
 ## Version History
 
+- 1.1.0 — Updated to Grafana (migrated from Overseer dashboard)
 - 1.0.0 — Initial release with monitoring operations
