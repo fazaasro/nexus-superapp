@@ -1,5 +1,52 @@
 # MEMORY.md - Long-Term Memory
 
+## Recent Updates (2026-02-20)
+
+### 0. Search Quality Decision - QMD BM25 as Default 🔍
+**Status:** Comprehensive comparison completed, default search tool selected
+
+**What Was Tested:**
+- 3 real queries compared: "cloudflare api authentication", "docker ports localhost", "vault tunnel configuration"
+- Actual results side-by-side comparison
+- Relevance scoring evaluation
+- Context quality assessment
+
+**Results Summary:**
+| Query | memsearch Quality | QMD BM25 Quality | Winner |
+|--------|-------------------|-------------------|--------|
+| cloudflare api authentication | Poor (wrong API) | Good (49-51%) | 🏆 QMD |
+| docker ports localhost | Fair (ref table) | Good (65-66%) | 🏆 QMD |
+| vault tunnel configuration | Fair (mentions only) | Excellent (85%) | 🏆 QMD |
+
+**Why QMD BM25 Won (3/3 tests):**
+
+1. **Better Relevance** - Consistent 49-85% scores vs basic memsearch ranking
+2. **Richer Context** - Line numbers (@@ before, after), code blocks, snippets
+3. **Actual Solutions** - Found working API format, security rules, complete config
+4. **Broader Coverage** - 173 files (workspace + stack + skills) vs 44 (memory only)
+
+**memsearch Strengths:**
+- 83x faster (0.018s vs 1.5s)
+- Instant feedback for interactive debugging
+- Good for high-frequency search workflows
+
+**Final Decision:**
+**Default: QMD BM25** - Use for 90% of AI assistant queries
+**Backup: memsearch** - Use for interactive debugging (10+ searches in a row)
+
+**Use Case Guide:**
+- AI assistant queries → QMD BM25 (better relevance)
+- Cross-repo search → QMD BM25 (covers stack/, skills/)
+- API commands → QMD BM25 (shows code blocks with context)
+- Troubleshooting → QMD BM25 (richer context, line references)
+- Interactive debugging → memsearch (instant feedback loop)
+- High-frequency scripts → memsearch (83x faster total time)
+
+**Files:**
+- `memory/search-quality-comparison-2026-02-20.md` - Full analysis with 3 test queries
+
+---
+
 ## Recent Updates (2026-02-19)
 
 ### 0. QMD & Memory Search Implementation Complete 📊
