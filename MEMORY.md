@@ -853,6 +853,75 @@ The Bag (Finance module)
 - Restart policies defined
 - Volume mounts for persistence
 
+### Subagent Standards (Important!)
+
+**When spawning a subagent, all interaction MUST follow main agent standards:**
+
+1. **Logging** - Write to `memory/YYYY-MM-DD.md` (daily memory)
+2. **Lessons learned** - Document in `memory/error-log.md` when tools fail, assumptions wrong, or discoveries made
+3. **Context preservation** - Pass relevant session context with the task
+4. **Transparency** - Always say "spawning <agent-name>..." before spawning
+5. **Monitoring** - Use `process:log` to track progress for long tasks
+6. **Error handling** - Capture all tool failures immediately with details
+7. **Consistency** - Maintain same voice, tone, and decision-making as main agent
+
+**Do NOT:**
+- Leave important information undocumented
+- Skip error logging when tools fail
+- Change agent identity or voice in subagent sessions
+- Assume context without checking memory first
+
+**Use memory_search tool first** - Always check existing memory before spawning subagent, to avoid re-learning lessons.
+
+**Subagent task format:**
+```
+Task: <clear description>
+Context: <relevant background information>
+Memory reference: <check memory/YYYY-MM-DD.md first>
+Goal: <what success looks like>
+```
+
+### Coding Agents Usage
+
+**Available Tools:**
+- **Kimi CLI** - Installed at ~/.local/bin/kimi, default model: kimi-code/kimi-for-coding
+- **Claude Code** - Installed at ~/.local/bin/claude
+- **Codex, OpenCode, Pi** - Not installed
+
+**Critical Usage Rules:**
+- **Always use pty:true** when running coding agents (they need a terminal)
+- Codex requires a git directory (use `mktemp -d && git init` for scratch work)
+- Kimi and Claude Code don't require git repos
+- Transparency: Always say "spawning Kimi..." or "spawning Claude Code..." before using
+- Background mode: Use `background:true` for long tasks, get sessionId for monitoring
+- Monitor with `process:log` to check progress
+
+**Flags:**
+- **Auto-approve:** Codex `--yolo`, Kimi `-y`, Claude Code `--dangerously-skip-permissions`
+- **One-shot:** Kimi `-p`, Claude Code `-p` (non-interactive, exits when done)
+
+**Never:**
+- Start coding agents in ~/clawd/ (they'll read soul docs)
+- Checkout branches in ~/Projects/openclaw/ (live instance)
+
+### Code Quality Standards
+
+**Nexus Super App (Python):**
+- Type hints throughout all code
+- Comprehensive docstrings for all functions and classes
+- Error handling with try/except blocks
+- Logging for debugging in production
+- Unit test coverage where possible
+- Production-ready code quality
+
+**Docker Compose:**
+- All services bind to 127.0.0.1 (localhost) for Cloudflare Tunnel security
+- Clear naming conventions
+- Proper resource allocation
+- Health checks configured
+- Restart policies defined
+- Volume mounts for persistence
+
 ---
 
 ## Error Log
