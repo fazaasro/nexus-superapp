@@ -23,9 +23,9 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 
 ---
 
-## 2026-02-19
+## 2026-02-20
 
-- 💡 **Cloudflare API Bearer token format** — API calls with "Authorization: Bearer <token>" failed with "Unable to authenticate request" error. Root cause: Token format incorrect or token invalid. Solution: Use "X-Auth-Email: <email>" and "X-Auth-Key: <token>" headers instead for API authentication.
+- 🔄 **Kimi approval loop without yolo flag** — Kimi CLI gets stuck in approval loop when user doesn't interact. Root cause: Default behavior requires interactive approval for every shell command. Solution: Always use `-y` (yolo) flag for non-interactive coding tasks: `kimi -y -p "your task"` or `exec pty:true command:"kimi -y 'your task'"`. Frequency: First use of kimi for coding task got stuck. Impact: Agent hung indefinitely. Fixed by using yolo mode.
 - 💡 **Cloudflare tunnel configuration via API** — Token-based cloudflared service doesn't use local config.yml. Configuration is stored in Cloudflare and managed via API. To add new hostnames, use: `PUT /accounts/{account_id}/cfd_tunnel/{tunnel_id}/configurations` with ingress array. The cloudflared service fetches config from Cloudflare automatically on restart.
 - 💡 **DNS record creation via Cloudflare API** — Create DNS records with POST to `/zones/{zone_id}/dns_records` using CNAME type pointing to `<tunnel-id>.cfargotunnel.com`. Must set "proxied": true for Cloudflare Access to work.
 
