@@ -47,6 +47,43 @@
 
 ---
 
+## Recent Updates (2026-02-20)
+
+### 0. memsearch Added to All Repositories 🔍
+**Status:** Native FTS5 search deployed to all 6 repositories
+
+**What Was Done:**
+- Created memsearch scripts (init, index, search, setup)
+- Added to vault-infrastructure ✅ (pushed to main)
+- Added to aac-infrastructure ✅ (up-to-date)
+- Added to aac-stack ✅ (up-to-date)
+- Added to levy-agent ✅ (up-to-date)
+- Added to overseer-monitoring ✅ (up-to-date)
+- Added to project-levy-ssh ✅ (up-to-date)
+
+**Files Added to Each Repo:**
+- `.scripts/memsearch-init.sql` - Database initialization
+- `.scripts/memsearch-index.sh` - Index repository files
+- `.scripts/memsearch-search.sh` - Search database
+- `.scripts/memsearch-setup.sh` - One-time setup script
+- `README-MEMSEARCH.md` - Documentation
+
+**Now Available in All Repos:**
+- QMD BM25 search (1.5s, 173 files, 3 collections)
+- memsearch (0.018s, repo files only, instant feedback)
+
+**Fair Comparison:** Both tools available in all repos → more fair performance comparison possible
+
+**Setup Commands:**
+```bash
+# In any repository
+./.scripts/memsearch-setup.sh     # One-time setup
+./.scripts/memsearch-index.sh     # Re-index files
+./.scripts/memsearch-search.sh     # Search
+```
+
+---
+
 ## Recent Updates (2026-02-19)
 
 ### 0. QMD & Memory Search Implementation Complete 📊
