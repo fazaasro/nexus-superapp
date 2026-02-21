@@ -26,6 +26,7 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 ## 2026-02-21
 
 - 💡 **docker-check script regex escaping bug** — Script reported overseer as "stopped" despite 5 overseer containers running. Root cause: `grep -c "^overseer$"` used exact match without escaping special chars, plus overseer containers have hyphenated names (overseer-grafana, overseer-prometheus, etc.). Solution: Added special case for overseer to check for `^overseer-` pattern, ensuring multi-container services are detected correctly. Fixed in ~/.openclaw/workspace/scripts/docker-helpers.sh.
+- 🔄 **coding agent workflow correction** — User corrected approach: "prioritize claude code and kimi for coding task, give them full context and let them use their tools." Root cause: Overused sessions_spawn for coding tasks when claude code/kimi should be used directly. Solution: Updated workflow to prioritize 1) Claude Code (interactive, multi-file), 2) Kimi yolo mode (automation, quick tasks), 3) sessions_spawn (only for complex orchestration or isolation). Always give full context in prompts, not brief task descriptions. Impact: Better coding workflow, more appropriate tool usage. User feedback accepted immediately.
 
 ## 2026-02-20
 
