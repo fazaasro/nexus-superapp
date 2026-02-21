@@ -2,7 +2,68 @@
 
 ## Recent Updates (2026-02-21)
 
-### 0. cAdvisor Per-Container Metrics Investigation 📊
+### 0. OpenClaw Gateway Version Mismatch Fixed 🔧
+**Status:** Resolved
+
+**Problem Discovered:**
+- OpenClaw commands running extremely slow (`sleep 5` took 36+ seconds)
+- Gateway reporting version 2026.2.15, config showing last written by 2026.2.17
+- Update to 2026.2.17 ran but didn't apply to running gateway
+
+**Root Cause:**
+- System-wide `/usr/bin/openclaw` symlink pointing to `/usr/lib/node_modules/openclaw` (2026.2.15)
+- User-local `~/.npm-global/lib/node_modules/openclaw` had 2026.2.17 installed
+- PATH prioritized system binary over user-local npm installation
+
+**Solution Applied:**
+1. Removed system symlink: `sudo rm /usr/bin/openclaw`
+2. Verified PATH order: `~/.npm-global/bin` now prioritized
+3. Restarted systemd service: `systemctl --user restart openclaw-gateway`
+4. Verified: `openclaw --version` now reports 2026.2.17
+5. Tested: Commands running at normal speed again
+
+**Lesson Learned:**
+- Global npm packages can conflict with system-wide installations
+- Check `which openclaw` and verify symlink targets when updates don't apply
+- Remove conflicting system paths before running update commands
+
+---
+
+### 0. cAdvisor Per-Container Metrics Investigation (Updated) 📊
+**Status:** Investigation complete, NEW blocker discovered
+
+**Problem Discovered:**
+- cAdvisor only reporting aggregate metrics (`instance="docker-daemon"`)
+- No per-container metrics (grafana, prometheus, code-server, etc.)
+- Grafana dashboards showing "No Data" for container monitoring
+
+**Root Cause #1 (Missing Flag - Fixed):**
+- Missing `--raw_cgroup_prefix_whitelist=docker/` flag in cAdvisor config
+- cAdvisor collecting only aggregate Docker daemon metrics, not individual containers
+- **Fixed:** Added flag to docker-compose.monitoring.yml
+
+**Root Cause #2 (NEW BLOCKER - Not Resolved):**
+- cAdvisor v0.47.2 has Docker client 1.41
+- Docker Daemon API: 1.53
+- Error: "client version 1.41 is too old. Minimum supported API version is 1.44"
+- cAdvisor cannot query Docker API to discover containers
+
+**Current State:**
+- Config fix applied (`--raw_cgroup_prefix_whitelist=docker/`)
+- cAdvisor restarted with new config
+- Still cannot collect per-container metrics due to API version mismatch
+- Need cAdvisor version with Docker client 1.44+
+
+**Workaround:**
+- Created "System Overview (Fixed)" dashboard using host metrics only (Node Exporter)
+- Host CPU/RAM/Disk/Network working perfectly
+- Temporary until cAdvisor version is upgraded
+
+**Next Steps:**
+- Test cAdvisor versions to find compatible one for Docker 1.53
+- Update docker-compose.monitoring.yml with working version
+- Verify per-container metrics appear in Prometheus
+- Update container monitoring dashboards
 **Status:** Investigation complete, fix pending
 
 **Problem Discovered:**
