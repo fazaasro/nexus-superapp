@@ -84,7 +84,14 @@ docker-check() {
     echo ""
     
     for service in portainer n8n qdrant code-server overseer; do
-        status=$(docker ps --format "{{.Names}}" | grep -c "^$service$" || echo "0")
+        if [ "$service" = "overseer" ]; then
+            # Check if any overseer-* container is running
+            status=$(docker ps --format "{{.Names}}" | grep -c "^overseer-" || echo "0")
+        else
+            # Check exact match for single-container services
+            status=$(docker ps --format "{{.Names}}" | grep -c "^${service}$" || echo "0")
+        fi
+        
         if [ "$status" -gt 0 ]; then
             echo "✅ $service: running"
         else
@@ -93,7 +100,7 @@ docker-check() {
     done
     
     echo ""
-    echo "Total running: $(docker ps | wc -l)"
+    echo "Total running: $(docker ps --format "{{.Names}}" | wc -l)"
 }
 
 # Restart all AAC services

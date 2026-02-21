@@ -23,6 +23,10 @@ Format: - 🏷️ **Short title** — What happened. What to do instead.
 
 ---
 
+## 2026-02-21
+
+- 💡 **docker-check script regex escaping bug** — Script reported overseer as "stopped" despite 5 overseer containers running. Root cause: `grep -c "^overseer$"` used exact match without escaping special chars, plus overseer containers have hyphenated names (overseer-grafana, overseer-prometheus, etc.). Solution: Added special case for overseer to check for `^overseer-` pattern, ensuring multi-container services are detected correctly. Fixed in ~/.openclaw/workspace/scripts/docker-helpers.sh.
+
 ## 2026-02-20
 
 - 🔄 **Kimi approval loop without yolo flag** — Kimi CLI gets stuck in approval loop when user doesn't interact. Root cause: Default behavior requires interactive approval for every shell command. Solution: Always use `-y` (yolo) flag for non-interactive coding tasks: `kimi -y -p "your task"` or `exec pty:true command:"kimi -y 'your task'"`. Frequency: First use of kimi for coding task got stuck. Impact: Agent hung indefinitely. Fixed by using yolo mode.
