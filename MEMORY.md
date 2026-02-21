@@ -1,5 +1,46 @@
 # MEMORY.md - Long-Term Memory
 
+## Recent Updates (2026-02-21)
+
+### 0. cAdvisor Per-Container Metrics Investigation 📊
+**Status:** Investigation complete, fix pending
+
+**Problem Discovered:**
+- cAdvisor only reporting aggregate metrics (`instance="docker-daemon"`)
+- No per-container metrics (grafana, prometheus, code-server, etc.)
+- Grafana dashboards showing "No Data" for container monitoring
+
+**Root Cause:**
+- Missing `--raw_cgroup_prefix_whitelist=docker/` flag in cAdvisor config
+- cAdvisor collecting only aggregate Docker daemon metrics, not individual containers
+
+**Proposed Fix:**
+```yaml
+cadvisor:
+  command:
+    - '--housekeeping_interval=10s'
+    - '--docker_only=true'
+    - '--raw_cgroup_prefix_whitelist=docker/'  # ADD THIS
+    - '--disable_metrics=percpu,sched,tcp,udp,diskIO,hugetlb,referenced_memory,cpu_topology,resctrl'
+```
+
+**Workaround:**
+- Created "System Overview (Fixed)" dashboard using host metrics only (Node Exporter)
+- Host CPU/RAM/Disk/Network working perfectly
+- Temporary until cAdvisor fix is applied
+
+**Files Created:**
+- `overseer/CADVISOR_ISSUE.md` - Complete investigation report
+- `overseer/DEBUG_DASHBOARD_EMPTY.md` - Debug documentation
+
+**Next Steps:**
+- Apply cAdvisor config fix (add raw_cgroup_prefix_whitelist)
+- Restart cAdvisor to apply changes
+- Verify per-container metrics appear in Prometheus
+- Update container monitoring dashboards
+
+---
+
 ## Recent Updates (2026-02-20)
 
 ### 0. Skills Cleanup Complete 📚
