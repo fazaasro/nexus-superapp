@@ -119,41 +119,41 @@
 - Update docker-compose.monitoring.yml with working version
 - Verify per-container metrics appear in Prometheus
 - Update container monitoring dashboards
-**Status:** Investigation complete, fix pending
 
-**Problem Discovered:**
-- cAdvisor only reporting aggregate metrics (`instance="docker-daemon"`)
-- No per-container metrics (grafana, prometheus, code-server, etc.)
-- Grafana dashboards showing "No Data" for container monitoring
+### 0. Coding Agent Workflow Corrected 🔄
+**Status:** Workflow updated - prioritize Claude Code and Kimi directly
 
-**Root Cause:**
-- Missing `--raw_cgroup_prefix_whitelist=docker/` flag in cAdvisor config
-- cAdvisor collecting only aggregate Docker daemon metrics, not individual containers
+**User Correction:**
+"prioritize claude code and kimi for coding task, give them full context and let them use their tools."
 
-**Proposed Fix:**
-```yaml
-cadvisor:
-  command:
-    - '--housekeeping_interval=10s'
-    - '--docker_only=true'
-    - '--raw_cgroup_prefix_whitelist=docker/'  # ADD THIS
-    - '--disable_metrics=percpu,sched,tcp,udp,diskIO,hugetlb,referenced_memory,cpu_topology,resctrl'
+**What Was Wrong:**
+- Overused sessions_spawn for coding tasks
+- Should use Claude Code and Kimi directly with full context
+
+**Corrected Workflow (Priority Order):**
+
+**1. Claude Code** - Interactive file operations, git work, multi-file edits
+```bash
+exec pty:true command:"claude 'full context description here'"
 ```
+Use for: Complex multi-file edits, git operations, interactive coding
 
-**Workaround:**
-- Created "System Overview (Fixed)" dashboard using host metrics only (Node Exporter)
-- Host CPU/RAM/Disk/Network working perfectly
-- Temporary until cAdvisor fix is applied
+**2. Kimi Yolo Mode** - Automation, scripts, quick coding
+```bash
+exec pty:true command:"kimi -y -p 'full context description here'"
+```
+Use for: One-shot automation, script writing, quick tasks
 
-**Files Created:**
-- `overseer/CADVISOR_ISSUE.md` - Complete investigation report
-- `overseer/DEBUG_DASHBOARD_EMPTY.md` - Debug documentation
+**3. Sessions Spawn** - Only for:
+- Complex multi-step orchestration
+- Tasks needing isolation
+- When user specifically requests sub-agent
 
-**Next Steps:**
-- Apply cAdvisor config fix (add raw_cgroup_prefix_whitelist)
-- Restart cAdvisor to apply changes
-- Verify per-container metrics appear in Prometheus
-- Update container monitoring dashboards
+**Lesson:**
+- sessions_spawn is for orchestration, not general coding
+- Always give full context when using Claude Code or Kimi
+- Use the right tool for the job
+- Claude Code and Kimi have their own tools and can complete tasks directly
 
 ---
 
