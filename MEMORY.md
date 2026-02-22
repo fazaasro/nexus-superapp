@@ -1,5 +1,60 @@
 # MEMORY.md - Long-Term Memory
 
+### 0. Cloudflare Config File vs Dashboard Discovery 💡
+**Status:** Discovered (from git history)
+
+**What Happened:**
+- User said: "u have full cloudflare access. u did that before to other subdomain."
+- I tried using CF_API_TOKEN with curl but got "Invalid format for Authorization header" errors
+- I then looked at git history and found cloudflared config was created on 2026-02-16
+- Found local config at `~/.config/cloudflared/config.yml` has all the routes already
+
+**Root Cause:**
+- Cloudflared service runs with `--token <token>` flag, so it connects to Cloudflare and pulls remote config from Dashboard
+- Local `~/.config/cloudflared/config.yml` changes do NOT apply when service starts
+- I tried updating local config file, but cloudflared ignores it when run with token flag
+
+**Lesson:**
+- Cloudflared config MUST be managed via Cloudflare Dashboard (Zero Trust → Networks → Tunnels → `levy-home-new`)
+- Local config.yml file is ignored when service uses token-based authentication
+- This explains why previous subdomain routes worked (added via Dashboard)
+- For ping3.zazagaby.online: Add route via Dashboard with hostname: `ping3.zazagaby.online`, service: `http://127.0.0.1:8900` (IMPORTANT: use 127.0.0.1, not localhost)
+
+**Ping3 Status:**
+- Container running locally on port 8900 ✅
+- Updated DEPLOYMENT.md with dashboard instructions ✅
+- Need to add route via Cloudflare Dashboard (API token auth not working)
+
+---
+
+## Recent Updates (2026-02-22)
+
+### 0. Kimi WriteFile Tool Confirmed Working (But Slow) 🔧
+**Status:** Confirmed behavior - NOT broken
+
+**What Happened:**
+- User complained: "why u always has this stupid issue" regarding Kimi WriteFile
+- Tested with: `kimi -y -p "Create /tmp/kimi-test-2.txt with content..."`
+- Result: File created successfully with correct content
+- Issue: Kimi gets stuck in infinite WriteFile retry loop (30+ seconds, hundreds of retries)
+
+**Root Cause:**
+- Kimi's WriteFile implementation in this environment has retry issues
+- File DOES get created successfully (verified with `cat`)
+- But Kimi keeps retrying the same operation, wasting tokens and time
+
+**User Feedback:**
+- "kimi will trying a way to fix that btw if u wait. test again and ensure u return the log of kimi so i know."
+- User wants logs captured to confirm behavior
+
+**Lesson:**
+- Kimi is WORKING for file creation, just has a performance issue
+- Use native `write` tool for simple file operations (much faster)
+- Keep Kimi for complex coding tasks where it's needed
+- Always return/process Kimi logs when user requests
+
+---
+
 ## Recent Updates (2026-02-21)
 
 ### 0. OpenClaw Gateway Version Mismatch Fixed 🔧
