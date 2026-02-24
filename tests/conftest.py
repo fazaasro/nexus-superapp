@@ -40,24 +40,7 @@ def test_database():
     conn.commit()
     conn.close()
 
-    # Create users table from migration (for auth)
-    migration_path = Path(__file__).parent.parent / "database" / "migrations" / "add_auth_fields.sql"
-    if migration_path.exists():
-        with open(migration_path, 'r') as f:
-            migration_sql = f.read()
-
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        for sql_statement in migration_sql.split(';'):
-            sql_statement = sql_statement.strip()
-            if sql_statement and not sql_statement.startswith('--'):
-                try:
-                    conn.execute(sql_statement)
-                except Exception as e:
-                    # Some statements might fail if tables exist
-                    pass
-        conn.commit()
-        conn.close()
+    print(f"✅ Test database initialized at {db_path}")
 
     yield {'db_path': db_path, 'temp_dir': temp_dir}
 
