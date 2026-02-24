@@ -1,0 +1,150 @@
+"""
+Pytest configuration and fixtures for Nexus Superapp tests
+"""
+import pytest
+import tempfile
+import os
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.database import get_db
+from core.auth import create_access_token, hash_password
+
+
+@pytest.fixture(scope="session")
+def test_database():
+    """
+    Create temporary database for testing
+    """
+    # Create temporary database file
+    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(db_fd)
+
+    # Set database path in environment
+    os.environ['TEST_DB_PATH'] = db_path
+
+    yield db_path
+
+    # Cleanup after tests
+    if os.path.exists(db_path):
+        os.unlink(db_path)
+
+
+@pytest.fixture
+def test_user(test_database):
+    """
+    Create test user
+    """
+    user_id = 'test_user'
+
+    with get_db() as conn:
+        # Create test user
+        conn.execute(
+            """INSERT OR REPLACE INTO users
+               (id, email, name, password_hash, is_active, email_verified)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (user_id, 'test@example.com', 'Test User', hash_password('test_password'), True, True)
+        )
+
+        yield {'user_id': user_id, 'email': 'test@example.com', 'name': 'Test User'}
+
+        # Cleanup
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
+@pytest.fixture
+def admin_token(test_user):
+    """
+    Create admin access token
+    """
+    token = create_access_token(test_user['user_id'], test_user['email'])
+    return token
+
+
+@pytest.fixture
+def sample_knowledge_entry(test_user):
+    """
+    Create sample knowledge entry
+    """
+    entry = {
+        'title': 'Test Knowledge Entry',
+        'content': 'This is a test knowledge entry for testing purposes.',
+        'domain': 'tech',
+        'project': 'test_project',
+        'content_type': 'note',
+        'tags': ['test', 'unit-test'],
+        'is_srs_eligible': False
+    }
+    return entry
+
+
+@pytest.fixture
+def sample_transaction(test_user):
+    """
+    Create sample transaction
+    """
+    txn = {
+        'merchant': 'Test Merchant',
+        'amount': 99.99,
+        'currency': 'EUR',
+        'category': 'lifestyle',
+        'impact_score': 3,
+        'split_type': 'solo',
+        'notes': 'Test transaction for unit tests'
+    }
+    return txn
+
+
+@pytest.fixture
+def sample_contact(test_user):
+    """
+    Create sample contact
+    """
+    contact = {
+        'name': 'Test Person',
+        'relationship': 'friend',
+        'inner_circle': False,
+        'contact_frequency': 'monthly',
+        'phone': '+1234567890',
+        'email': 'test@example.com',
+        'notes': 'Test contact for unit tests'
+    }
+    return contact
+
+
+@pytest.fixture
+def sample_health_log(test_user):
+    """
+    Create sample health log
+    """
+    log = {
+        'owner': 'gaby',
+        'symptom_type': 'allergy',
+        'severity': 5,
+        'trigger': 'peanuts',
+        'notes': 'Test allergy log for unit tests',
+        'location': 'home'
+    }
+    return log
+
+
+@pytest.fixture
+def sample_blueprint_log(test_user):
+    """
+    Create sample Blueprint log
+    """
+    log = {
+        'owner': 'faza',
+        'date': '2026-02-24',
+        'supplements_taken': True,
+        'supplement_list': ['vitamin_d', 'omega3'],
+        'super_veggie_eaten': True,
+        'nutty_pudding_eaten': True,
+        'exercise_done': True,
+        'meals_logged': ['breakfast', 'lunch', 'dinner'],
+        'water_intake_ml': 2500
+    }
+    return log
