@@ -117,7 +117,7 @@ class TestRefreshToken:
         """Test refresh token creation"""
         user_id = "test_user"
 
-        refresh_token = create_refresh_token(user_id)
+        refresh_token = create_refresh_token(user_id, 'test@example.com')
 
         assert refresh_token is not None
         assert len(refresh_token) > 50  # JWT tokens are long
@@ -128,7 +128,7 @@ class TestRefreshToken:
         email = "test@example.com"
 
         access_data = create_access_token(user_id, email)
-        refresh_token = create_refresh_token(user_id)
+        refresh_token = create_refresh_token(user_id, email)
 
         assert access_data['refresh_token'] != refresh_token
 
