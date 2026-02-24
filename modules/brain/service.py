@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup as bs4
 import networkx as nx
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
@@ -439,7 +439,7 @@ class BrainModule:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
 
-            soup = BeautifulSoup(response.text, 'html.parser')
+            soup = bs4(response.text, 'html.parser')
 
             # Extract title
             title_tag = soup.find('title')
