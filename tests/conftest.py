@@ -40,6 +40,18 @@ def test_database():
     conn.commit()
     conn.close()
 
+    # Run authentication migration to add password_hash column
+    migration_path = Path(__file__).parent.parent / "database" / "migrations" / "add_auth_fields.sql"
+    if migration_path.exists():
+        with open(migration_path, 'r') as f:
+            migration_sql = f.read()
+
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        conn.executescript(migration_sql)
+        conn.commit()
+        conn.close()
+
     print(f"✅ Test database initialized at {db_path}")
 
     yield {'db_path': db_path, 'temp_dir': temp_dir}
