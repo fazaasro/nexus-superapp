@@ -11,7 +11,7 @@ import shutil
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.database import get_db, init_database
+from core.database import get_db, init_db
 from core.auth import create_access_token, hash_password
 
 
@@ -27,16 +27,28 @@ def test_database():
     # Set database path in environment
     os.environ['TEST_DB_PATH'] = db_path
 
-    # Initialize database with schema
-    init_database(db_path)
+    # Initialize database by reading and executing schema directly
+    schema_path = Path(__file__).parent.parent / "database" / "schema.sql"
+    with open(schema_path, 'r') as f:
+        schema_sql = f.read()
 
-    # Create users table manually (from migration)
-    schema_path = Path(__file__).parent.parent / "database" / "migrations" / "add_auth_fields.sql"
-    schema_sql = schema_path.read_text()
+    # Create connection and execute schema
+    import sqlite3
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(schema_sql)
+    conn.commit()
+    conn.close()
 
-    with open(db_path, 'r+') as conn:
-        # Execute migration SQL
-        for sql_statement in schema_sql.split(';'):
+    # Create users table from migration (for auth)
+    migration_path = Path(__file__).parent.parent / "database" / "migrations" / "add_auth_fields.sql"
+    if migration_path.exists():
+        with open(migration_path, 'r') as f:
+            migration_sql = f.read()
+
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        for sql_statement in migration_sql.split(';'):
             sql_statement = sql_statement.strip()
             if sql_statement and not sql_statement.startswith('--'):
                 try:
@@ -44,8 +56,10 @@ def test_database():
                 except Exception as e:
                     # Some statements might fail if tables exist
                     pass
+        conn.commit()
+        conn.close()
 
-    yield db_path
+    yield {'db_path': db_path, 'temp_dir': temp_dir}
 
     # Cleanup after tests
     shutil.rmtree(temp_dir, ignore_errors=True)
@@ -58,19 +72,23 @@ def test_user(test_database):
     """
     user_id = 'test_user'
 
-    with get_db() as conn:
-        # Create test user
-        conn.execute(
-            """INSERT OR REPLACE INTO users
-               (id, email, name, password_hash, is_active, email_verified)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (user_id, 'test@example.com', 'Test User', hash_password('test_password'), True, True)
-        )
+    # Connect to test database
+    import sqlite3
+    conn = sqlite3.connect(test_database['db_path'])
+    conn.row_factory = sqlite3.Row
 
-        yield {'user_id': user_id, 'email': 'test@example.com', 'name': 'Test User'}
+    # Create test user
+    conn.execute(
+        """INSERT OR REPLACE INTO users
+           (id, email, name, password_hash, is_active, email_verified)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (user_id, 'test@example.com', 'Test User', hash_password('test_password'), True, True)
+    )
 
-        # Cleanup
-        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+    yield {'user_id': user_id, 'email': 'test@example.com', 'name': 'Test User'}
 
 
 @pytest.fixture
@@ -80,10 +98,6 @@ def admin_token(test_user):
     """
     token = create_access_token(test_user['user_id'], test_user['email'])
     return token
-
-
-@pytest.fixture
-def sample_knowledge_entry(test_user):
     """
     Create sample knowledge entry
     """
