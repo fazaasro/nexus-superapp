@@ -1,0 +1,65 @@
+# .dockerignore - Files to exclude from Docker image
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+
+# Tests
+tests/
+test_*.py
+pytest.ini
+.pytest_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data (will be mounted as volume)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Skills (not needed in production container)
+skills/
+
+# Memory (not needed in production)
+memory/
+
+# Workspace (not needed in production)
+workspace/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
