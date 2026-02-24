@@ -6,7 +6,7 @@ from core.auth import (
     hash_password,
     verify_password,
     create_access_token,
-    decode_access_token,
+    verify_token,
     create_refresh_token
 )
 
@@ -83,7 +83,7 @@ class TestTokenDecoding:
         email = "test@example.com"
 
         token_data = create_access_token(user_id, email)
-        decoded = decode_access_token(token_data['access_token'])
+        decoded = verify_token(token_data['access_token'])
 
         assert decoded is not None
         assert decoded['user_id'] == user_id
@@ -93,7 +93,7 @@ class TestTokenDecoding:
         """Test decoding invalid token"""
         invalid_token = "invalid.jwt.token"
 
-        decoded = decode_access_token(invalid_token)
+        decoded = verify_token(invalid_token)
 
         assert decoded is None
 
@@ -105,7 +105,7 @@ class TestTokenDecoding:
         email = "test@example.com"
 
         token_data = create_access_token(user_id, email)
-        decoded = decode_access_token(token_data['access_token'])
+        decoded = verify_token(token_data['access_token'])
 
         assert decoded is not None
 
@@ -196,7 +196,7 @@ class TestAuthFlow:
         assert token_data is not None
 
         # Decode token
-        decoded = decode_access_token(token_data['access_token'])
+        decoded = verify_token(token_data['access_token'])
         assert decoded is not None
         assert decoded['user_id'] == test_user['user_id']
 
