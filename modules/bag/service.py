@@ -6,6 +6,7 @@ import json
 import uuid
 import re
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
@@ -14,15 +15,20 @@ from pathlib import Path
 from core.database import get_db, generate_uuid, log_audit
 from .ocr import OCRProcessor
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 
 class BagModule:
     """Finance management module"""
-    
+
     CATEGORIES = ['survival', 'health', 'lifestyle', 'trash', 'income', 'investment']
     SPLIT_TYPES = ['solo', 'split_equal', 'split_custom']
-    
+
     def __init__(self):
         self.db_path = Path(__file__).parent.parent.parent / "data" / "levy.db"
+        # Initialize OCR processor for receipt processing
+        self.ocr_processor = None
     
     # ========== TRANSACTION CRUD ==========
     
@@ -128,16 +134,16 @@ class BagModule:
                 'faza_portion': faza_portion, 'gaby_portion': gaby_portion}
     
     # ========== RUNWAY CALCULATION ==========
-    
+
     def calculate_runway(self, user_id: str, current_balance: float = None) -> Dict:
         """Calculate days of survival remaining"""
-        
+
         # Get average monthly spend (last 3 months)
         with get_db() as conn:
             cursor = conn.execute(
                 """SELECT AVG(monthly_spend) as avg_spend
                    FROM (
-                       SELECT 
+                       SELECT
                            strftime('%Y-%m', timestamp) as month,
                            SUM(amount) as monthly_spend
                        FROM transactions
@@ -150,20 +156,19 @@ class BagModule:
             )
             row = cursor.fetchone()
             avg_monthly = row['avg_spend'] or 0
-        
+
         if avg_monthly == 0:
             return {'error': 'No spending data available'}
-        
-        # Calculate runway
+
+        # Calculate current balance if not provided
         if current_balance is None:
-            # For demo, use a placeholder
-            current_balance = 5000  # TODO: integrate with bank API
-        
+            current_balance = self._get_current_balance(user_id)
+
         daily_burn = avg_monthly / 30
         days_remaining = int(current_balance / daily_burn)
-        
+
         depletion_date = datetime.now() + timedelta(days=days_remaining)
-        
+
         return {
             'days_remaining': days_remaining,
             'months_remaining': round(days_remaining / 30, 1),
@@ -171,10 +176,85 @@ class BagModule:
             'monthly_burn': round(avg_monthly, 2),
             'current_balance': current_balance,
             'projected_depletion': depletion_date.isoformat(),
-            'status': 'critical' if days_remaining < 30 else 
+            'status': 'critical' if days_remaining < 30 else
                      'warning' if days_remaining < 90 else 'healthy'
         }
-    
+
+    def _get_current_balance(self, user_id: str) -> float:
+        """
+        Get current balance from database or bank API.
+
+        Calculates balance from:
+        1. Sum of income transactions
+        2. Sum of expense transactions
+
+        Future: Integrate with bank API for real-time balance.
+        """
+        with get_db() as conn:
+            # Calculate total income
+            income = conn.execute(
+                """SELECT COALESCE(SUM(amount), 0) as total
+                   FROM transactions
+                   WHERE owner IN (?, 'shared')
+                   AND category = 'income'""",
+                (user_id,)
+            ).fetchone()['total']
+
+            # Calculate total expenses
+            expenses = conn.execute(
+                """SELECT COALESCE(SUM(amount), 0) as total
+                   FROM transactions
+                   WHERE owner IN (?, 'shared')
+                   AND category != 'income'""",
+                (user_id,)
+            ).fetchone()['total']
+
+            current_balance = income - expenses
+
+            logger.info(f"Balance for {user_id}: income={income}, expenses={expenses}, current={current_balance}")
+
+            return current_balance
+
+    def get_bank_balance(self, user_id: str, bank_account_id: str = None) -> Dict:
+        """
+        Get real-time balance from bank API.
+
+        This is a placeholder for future bank API integration.
+        Supported APIs (to be implemented):
+        - Plaid (US banks)
+        - Yodlee (global)
+        - Open Banking (EU PSD2)
+        - GoCardless (UK)
+
+        Args:
+            user_id: User ID
+            bank_account_id: Specific bank account ID (optional)
+
+        Returns:
+            Dict with balance information
+
+        Note: This requires OAuth flow with bank and API credentials.
+        """
+        # TODO: Integrate with bank API (Plaid, Yodlee, etc.)
+        # For now, return calculated balance
+        try:
+            balance = self._get_current_balance(user_id)
+            return {
+                'balance': balance,
+                'currency': 'EUR',
+                'source': 'calculated',
+                'account_id': bank_account_id or 'all_accounts',
+                'timestamp': datetime.now().isoformat(),
+                'message': 'Bank API integration pending - using calculated balance'
+            }
+        except Exception as e:
+            logger.error(f"Error getting bank balance: {e}")
+            return {
+                'error': str(e),
+                'balance': 0,
+                'source': 'error'
+            }
+
     # ========== SUBSCRIPTION DETECTION ==========
     
     def detect_subscriptions(self, user_id: str) -> List[Dict]:
@@ -315,27 +395,222 @@ class BagModule:
                          'warning' if remaining < budget['amount'] * 0.2 else 'ok'
             }
     
-    # ========== RECEIPT OCR (Placeholder) ==========
-    
-    def process_receipt(self, image_path: str, user_id: str) -> Dict:
+    # ========== RECEIPT OCR ==========
+
+    def process_receipt(self, image_path: str, user_id: str, backend: str = 'paddleocr') -> Dict:
         """
-        Process receipt image through OCR
-        TODO: Integrate Tesseract or OpenAI Vision
+        Process receipt image through OCR.
+
+        Supports multiple backends:
+        - paddleocr: Self-hosted, free, fast (default)
+        - easyocr: Self-hosted service, free
+        - openai: Cloud API, accurate, costs money
+
+        Args:
+            image_path: Path to receipt image file
+            user_id: User ID creating the transaction
+            backend: OCR backend to use ('paddleocr', 'easyocr', 'openai')
+
+        Returns:
+            Dict with OCR results and parsed transaction data
         """
-        # Placeholder implementation
-        # Will be implemented with actual OCR
-        
-        return {
-            'status': 'placeholder',
-            'message': 'OCR integration pending',
-            'image_path': image_path,
-            'raw_text': None,
+        try:
+            # Initialize OCR processor if not already done
+            if self.ocr_processor is None or self.ocr_processor.backend != backend:
+                self.ocr_processor = OCRProcessor(backend=backend)
+
+            # Extract structured data from receipt
+            result = self.ocr_processor.extract_structured_data(image_path)
+
+            if not result.get("success"):
+                return {
+                    'status': 'error',
+                    'error': result.get("error", "OCR extraction failed"),
+                    'image_path': image_path
+                }
+
+            # Parse the structured response
+            raw_text = result.get("text", "")
+
+            # Parse transaction data from OCR text
+            transaction_data = self._parse_ocr_receipt(raw_text)
+
+            # Add metadata
+            transaction_data["image_path"] = image_path
+            transaction_data["ocr_timestamp"] = datetime.now().isoformat()
+            transaction_data["backend"] = backend
+
+            # Calculate confidence
+            confidence = self._calculate_ocr_confidence(transaction_data)
+
+            logger.info(f"Receipt processed: {transaction_data.get('merchant', 'unknown')}, amount={transaction_data.get('total', 0)}, confidence={confidence}")
+
+            return {
+                'status': 'success',
+                'transaction_data': transaction_data,
+                'raw_text': raw_text,
+                'confidence': confidence,
+                'backend': backend,
+                'usage': result.get("usage", {})
+            }
+
+        except FileNotFoundError as e:
+            return {
+                'status': 'error',
+                'error': f"Image file not found: {str(e)}",
+                'image_path': image_path
+            }
+        except Exception as e:
+            logger.error(f"Error processing receipt: {e}")
+            return {
+                'status': 'error',
+                'error': f"Unexpected error: {str(e)}",
+                'image_path': image_path
+            }
+
+    def _parse_ocr_receipt(self, raw_text: str) -> Dict:
+        """
+        Parse OCR text to extract receipt information.
+
+        Args:
+            raw_text: Raw OCR text from receipt
+
+        Returns:
+            Dict with parsed transaction data
+        """
+        # Initialize result
+        transaction_data = {
             'merchant': None,
-            'amount': None
+            'date': None,
+            'items': [],
+            'subtotal': None,
+            'tax': None,
+            'total': None,
+            'payment_method': None
         }
-    
+
+        # Try to parse JSON from text (if AI-structured)
+        try:
+            import json
+            # Look for JSON object in text
+            json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                # Update transaction_data with parsed values
+                transaction_data.update(parsed)
+                return transaction_data
+        except Exception:
+            pass  # Continue with regex parsing
+
+        # Regex-based parsing (fallback)
+        lines = raw_text.split('\n')
+
+        for line in lines:
+            # Extract merchant (first few lines, usually store name)
+            if not transaction_data['merchant'] and len(line) > 3 and len(line) < 50:
+                # Check if it's not a price or date
+                if not re.search(r'\d+\.\d{2}', line) and not re.search(r'\d{4}-\d{2}-\d{2}', line):
+                    transaction_data['merchant'] = line.strip()
+                    continue
+
+            # Extract date
+            date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4})', line)
+            if date_match and not transaction_data['date']:
+                transaction_data['date'] = date_match.group(1)
+                continue
+
+            # Extract total (look for "TOTAL", "TOTAL:", "JUMLAH", etc.)
+            if re.search(r'(TOTAL|Total|JUMLAH|SUM)', line, re.IGNORECASE):
+                total_match = re.search(r'(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})', line)
+                if total_match:
+                    # Clean up number format
+                    total_str = total_match.group(1).replace(',', '').replace('.', '')
+                    if len(total_str) > 2:
+                        total_str = total_str[:-2] + '.' + total_str[-2:]
+                    transaction_data['total'] = float(total_str)
+                    continue
+
+            # Extract subtotal
+            if re.search(r'(SUBTOTAL|Subtotal)', line, re.IGNORECASE):
+                subtotal_match = re.search(r'(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})', line)
+                if subtotal_match:
+                    subtotal_str = subtotal_match.group(1).replace(',', '').replace('.', '')
+                    if len(subtotal_str) > 2:
+                        subtotal_str = subtotal_str[:-2] + '.' + subtotal_str[-2:]
+                    transaction_data['subtotal'] = float(subtotal_str)
+                    continue
+
+            # Extract tax
+            if re.search(r'(TAX|Tax|VAT|PPN)', line, re.IGNORECASE):
+                tax_match = re.search(r'(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})', line)
+                if tax_match:
+                    tax_str = tax_match.group(1).replace(',', '').replace('.', '')
+                    if len(tax_str) > 2:
+                        tax_str = tax_str[:-2] + '.' + tax_str[-2:]
+                    transaction_data['tax'] = float(tax_str)
+                    continue
+
+            # Extract line items (pattern: name + price)
+            item_match = re.match(r'(.+?)\s+(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})', line)
+            if item_match:
+                item_name = item_match.group(1).strip()
+                price_str = item_match.group(2).replace(',', '').replace('.', '')
+                if len(price_str) > 2:
+                    price_str = price_str[:-2] + '.' + price_str[-2:]
+                price = float(price_str)
+
+                if item_name and price > 0:
+                    transaction_data['items'].append({
+                        'name': item_name,
+                        'price': price,
+                        'quantity': 1  # Default to 1
+                    })
+
+        return transaction_data
+
+    def _calculate_ocr_confidence(self, transaction_data: Dict) -> float:
+        """
+        Calculate confidence score for OCR extraction.
+
+        Args:
+            transaction_data: Parsed transaction data
+
+        Returns:
+            Confidence score (0.0 - 1.0)
+        """
+        score = 0.0
+        max_score = 4.0  # Total possible score
+
+        # Merchant found
+        if transaction_data.get('merchant'):
+            score += 1.0
+
+        # Date found
+        if transaction_data.get('date'):
+            score += 1.0
+
+        # Total found
+        if transaction_data.get('total'):
+            score += 1.0
+
+        # Items found
+        if transaction_data.get('items') and len(transaction_data['items']) > 0:
+            score += 1.0
+
+        # Bonus: subtotal and tax match
+        subtotal = transaction_data.get('subtotal')
+        tax = transaction_data.get('tax')
+        total = transaction_data.get('total')
+        if subtotal and tax and total:
+            expected_total = subtotal + tax
+            if abs(total - expected_total) < 0.01:  # Within 1 cent
+                score += 0.5
+                max_score = 4.5
+
+        return round(score / max_score, 2)
+
     # ========== REAL OCR IMPLEMENTATION ==========
-    
+
     async def ingest_receipt(self, image_path: str, ocr_api_key: Optional[str] = None, user_id: str = 'faza') -> Dict[str, Any]:
         """
         Ingest a receipt image using OCR to extract transaction data.

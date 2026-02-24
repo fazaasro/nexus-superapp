@@ -2,23 +2,25 @@
 API routes for The Circle module (Social CRM)
 FastAPI endpoints
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional, List
 
 from .service import CircleModule
+from core.auth import get_current_user_cloudflare
 
 
 router = APIRouter(prefix="/api/v1/circle", tags=["circle"])
 circle = CircleModule()
+get_current_user = get_current_user_cloudflare
 
 
 # ========== CONTACT ENDPOINTS ==========
 
 @router.post("/contacts")
-async def create_contact(contact_data: dict):
+async def create_contact(contact_data: dict, user: dict = Depends(get_current_user)):
     """Create a new contact"""
     try:
-        result = circle.create_contact(contact_data, user_id='faza')  # TODO: Get from auth
+        result = circle.create_contact(contact_data, user_id=user['user_id'])
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -27,12 +29,13 @@ async def create_contact(contact_data: dict):
 @router.get("/contacts")
 async def list_contacts(
     inner_circle_only: bool = False,
-    relationship: Optional[str] = None
+    relationship: Optional[str] = None,
+    user: dict = Depends(get_current_user)
 ):
     """List contacts"""
     try:
         contacts = circle.get_contacts(
-            user_id='faza',  # TODO: Get from auth
+            user_id=user['user_id'],
             inner_circle_only=inner_circle_only,
             relationship=relationship
         )
@@ -42,10 +45,10 @@ async def list_contacts(
 
 
 @router.get("/contacts/{contact_id}")
-async def get_contact(contact_id: str):
+async def get_contact(contact_id: str, user: dict = Depends(get_current_user)):
     """Get a single contact"""
     try:
-        contact = circle.get_contact(contact_id, user_id='faza')  # TODO: Get from auth
+        contact = circle.get_contact(contact_id, user_id=user['user_id'])
         if not contact:
             raise HTTPException(status_code=404, detail="Contact not found")
         return contact
@@ -56,10 +59,10 @@ async def get_contact(contact_id: str):
 
 
 @router.put("/contacts/{contact_id}")
-async def update_contact(contact_id: str, update_data: dict):
+async def update_contact(contact_id: str, update_data: dict, user: dict = Depends(get_current_user)):
     """Update a contact"""
     try:
-        result = circle.update_contact(contact_id, update_data, user_id='faza')  # TODO: Get from auth
+        result = circle.update_contact(contact_id, update_data, user_id=user['user_id'])
         if 'error' in result:
             raise HTTPException(status_code=400, detail=result['error'])
         return result
@@ -70,10 +73,10 @@ async def update_contact(contact_id: str, update_data: dict):
 
 
 @router.post("/contacts/{contact_id}/contact")
-async def record_contact(contact_id: str):
+async def record_contact(contact_id: str, user: dict = Depends(get_current_user)):
     """Record that you contacted this person"""
     try:
-        result = circle.record_contact(contact_id, user_id='faza')  # TODO: Get from auth
+        result = circle.record_contact(contact_id, user_id=user['user_id'])
         if 'error' in result:
             raise HTTPException(status_code=400, detail=result['error'])
         return result
@@ -86,10 +89,10 @@ async def record_contact(contact_id: str):
 # ========== HEALTH LOG ENDPOINTS ==========
 
 @router.post("/health-logs")
-async def create_health_log(log_data: dict):
+async def create_health_log(log_data: dict, user: dict = Depends(get_current_user)):
     """Create a health log entry"""
     try:
-        result = circle.create_health_log(log_data, logged_by='faza')  # TODO: Get from auth
+        result = circle.create_health_log(log_data, logged_by=user['user_id'])
         if 'error' in result:
             raise HTTPException(status_code=400, detail=result['error'])
         return result
@@ -103,12 +106,13 @@ async def create_health_log(log_data: dict):
 async def list_health_logs(
     owner: Optional[str] = None,
     symptom_type: Optional[str] = None,
-    days: int = Query(30, le=365)
+    days: int = Query(30, le=365),
+    user: dict = Depends(get_current_user)
 ):
     """List health logs"""
     try:
         logs = circle.get_health_logs(
-            user_id='faza',  # TODO: Get from auth
+            user_id=user['user_id'],
             owner=owner,
             symptom_type=symptom_type,
             days=days
@@ -119,10 +123,10 @@ async def list_health_logs(
 
 
 @router.get("/health-logs/{log_id}")
-async def get_health_log(log_id: str):
+async def get_health_log(log_id: str, user: dict = Depends(get_current_user)):
     """Get a single health log"""
     try:
-        log = circle.get_health_log(log_id, user_id='faza')  # TODO: Get from auth
+        log = circle.get_health_log(log_id, user_id=user['user_id'])
         if not log:
             raise HTTPException(status_code=404, detail="Health log not found")
         return log
@@ -149,10 +153,10 @@ async def analyze_health(
 # ========== CHECK-IN ENDPOINTS ==========
 
 @router.post("/checkins")
-async def create_checkin(checkin_data: dict):
+async def create_checkin(checkin_data: dict, user: dict = Depends(get_current_user)):
     """Create a relationship check-in"""
     try:
-        result = circle.create_checkin(checkin_data, user_id='faza')  # TODO: Get from auth
+        result = circle.create_checkin(checkin_data, user_id=user['user_id'])
         if 'error' in result:
             raise HTTPException(status_code=400, detail=result['error'])
         return result
@@ -195,10 +199,10 @@ async def get_checkin_trends(days: int = Query(30, le=90)):
 # ========== REMINDERS ==========
 
 @router.get("/reminders")
-async def get_reminders():
+async def get_reminders(user: dict = Depends(get_current_user)):
     """Get pending reminders"""
     try:
-        reminders = circle.get_reminders(user_id='faza')  # TODO: Get from auth
+        reminders = circle.get_reminders(user_id=user['user_id'])
         return reminders
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -207,10 +211,10 @@ async def get_reminders():
 # ========== STATISTICS ==========
 
 @router.get("/stats")
-async def get_stats():
+async def get_stats(user: dict = Depends(get_current_user)):
     """Get Circle module statistics"""
     try:
-        stats = circle.get_stats(user_id='faza')  # TODO: Get from auth
+        stats = circle.get_stats(user_id=user['user_id'])
         return stats
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

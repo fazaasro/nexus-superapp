@@ -5,8 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from typing import List, Optional
 
 from core.database import get_user_from_email
-from api.main import get_current_user
+from core.auth import get_current_user_cloudflare
 from modules.bag.service import BagModule
+
+router = APIRouter()
+bag = BagModule()
+get_current_user = get_current_user_cloudflare
 
 router = APIRouter()
 bag = BagModule()
