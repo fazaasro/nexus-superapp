@@ -1,14 +1,15 @@
 """
 Core database connection and utilities for AAC
 """
+import os
 import sqlite3
 import json
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-# Database path
-DB_PATH = Path(__file__).parent.parent / "data" / "levy.db"
+# Database path (check for TEST_DB_PATH for testing)
+DB_PATH = Path(os.environ.get('TEST_DB_PATH', __file__)).parent.parent / "data" / "levy.db"
 
 # User mapping from emails
 USER_MAP = {

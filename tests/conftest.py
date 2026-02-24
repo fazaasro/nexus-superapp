@@ -6,11 +6,12 @@ import tempfile
 import os
 import sys
 from pathlib import Path
+import shutil
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.database import get_db
+from core.database import get_db, init_database
 from core.auth import create_access_token, hash_password
 
 
@@ -19,18 +20,35 @@ def test_database():
     """
     Create temporary database for testing
     """
-    # Create temporary database file
-    db_fd, db_path = tempfile.mkstemp(suffix='.db')
-    os.close(db_fd)
+    # Create temporary database directory
+    temp_dir = tempfile.mkdtemp()
+    db_path = os.path.join(temp_dir, 'test_levy.db')
 
     # Set database path in environment
     os.environ['TEST_DB_PATH'] = db_path
 
+    # Initialize database with schema
+    init_database(db_path)
+
+    # Create users table manually (from migration)
+    schema_path = Path(__file__).parent.parent / "database" / "migrations" / "add_auth_fields.sql"
+    schema_sql = schema_path.read_text()
+
+    with open(db_path, 'r+') as conn:
+        # Execute migration SQL
+        for sql_statement in schema_sql.split(';'):
+            sql_statement = sql_statement.strip()
+            if sql_statement and not sql_statement.startswith('--'):
+                try:
+                    conn.execute(sql_statement)
+                except Exception as e:
+                    # Some statements might fail if tables exist
+                    pass
+
     yield db_path
 
     # Cleanup after tests
-    if os.path.exists(db_path):
-        os.unlink(db_path)
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @pytest.fixture
